@@ -1,6 +1,7 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
+#include "handler.h"
 #include <QWidget>
 #include <QtSerialPort/QSerialPort>
 
@@ -17,7 +18,8 @@ public:
     ~Widget();
 
 private slots:
-    void on_volumeSlider_valueChanged(unsigned value);
+
+    void on_volumeSlider_valueChanged(int value);
 
 //    void on_volumeSlider_rangeChanged(int min, int max);
 
@@ -36,5 +38,7 @@ private slots:
 private:
     Ui::Widget *ui;
     QSerialPort *serial;
+
+    SerialHandler *handler;
 };
 #endif // WIDGET_H

@@ -3,6 +3,7 @@
 #include <QtSerialPort/QSerialPort>
 #include <QErrorMessage>
 #include <QMessageBox>
+#include <thread>
 
 #include <QDebug>
 #include <QtCore/qglobal.h>
@@ -16,9 +17,11 @@ Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
     , serial(new QSerialPort(this))
+    , handler(new SerialHandler())
 
 {
 
+/*
     QString portName = "/dev/ttyUSB0";
     serial->setPortName(portName);
     serial->setBaudRate(QSerialPort::BaudRate::Baud9600);
@@ -42,6 +45,9 @@ Widget::Widget(QWidget *parent)
             exit(1);
         }
     }
+*/
+
+    handler->connectTo("/dev/ttyUSB0");
 
     ui->setupUi(this);
 
@@ -51,11 +57,12 @@ Widget::~Widget()
 {
     serial->close();
     delete serial;
+    delete handler;
     delete ui;
 }
 
 
-void Widget::on_volumeSlider_valueChanged(unsigned value)
+void Widget::on_volumeSlider_valueChanged(int value)
 {
     qDebug() << "\n========= Volume =========";
     ui->logBrowser->append("========= Volume =========");
@@ -63,6 +70,9 @@ void Widget::on_volumeSlider_valueChanged(unsigned value)
     value = value*63/100;
     qDebug() << "Volume: " << value;
 
+    handler->sendCommand(CMD::SET_VOLUME, value);
+
+/*
     if (serial->isOpen()) {
 
         char cmd = 1;
@@ -77,7 +87,8 @@ void Widget::on_volumeSlider_valueChanged(unsigned value)
         qDebug() << "Bytes sent: " << length;
         qDebug() << "";
 
-//        QByteArray dataResp = serial->readAll();
+
+//        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
         qint64 readSize = 0;
         qint64 available = serial->bytesAvailable();
@@ -86,15 +97,18 @@ void Widget::on_volumeSlider_valueChanged(unsigned value)
         qDebug() << "Responce: ";
         ui->logBrowser->append("Responce: ");
 
+        //        QByteArray dataResp = serial->readAll();
+
         while(available > 0 && (readSize = serial->readLine(respBuff, available)) > 0) {
             QString respString = QString(respBuff);
             qDebug() << respString;
             ui->logBrowser->append(respString);
         }
 
-        qDebug() << "";
+        qDebug() << "-----------------------";
         ui->logBrowser->append("\n");
     }
+*/
 }
 
 void Widget::on_balanceSlider_valueChanged(int value)

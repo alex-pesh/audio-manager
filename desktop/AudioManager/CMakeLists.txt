@@ -40,7 +40,9 @@ else()
     widget.cpp
     widget.h
     widget.ui
-  )
+    handler.h
+    handler.cpp
+)
 endif()
 
 target_link_libraries(AudioManager
