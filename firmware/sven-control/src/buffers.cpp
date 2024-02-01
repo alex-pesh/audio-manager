@@ -1,4 +1,8 @@
 #include <stdint.h>
+#include <string.h>
+
+//#include <cstdint>
+//#include <cstring>
 
 
 class CyclicBuff {
@@ -57,10 +61,12 @@ public:
             return 0;
         }
 
-        buff[writeIdx] = (char) (value >> 24);
-        buff[writeIdx + 1] = (char) (value >> 16);
-        buff[writeIdx + 2] = (char) (value >> 8);
-        buff[writeIdx + 3] = (char) value;
+//        buff[writeIdx] = (char) (value >> 24);
+//        buff[writeIdx + 1] = (char) (value >> 16);
+//        buff[writeIdx + 2] = (char) (value >> 8);
+//        buff[writeIdx + 3] = (char) value;
+
+        memcpy(buff+writeIdx, &value, sizeof(value));
 
         writeIdx = nextIdx;
 
@@ -76,10 +82,11 @@ public:
 
         uint32_t value = 0;
 
+//        for (unsigned n = readIdx; n < nextReadIdx; n++) {
+//            value = (value << 8) + buff[n];
+//        }
 
-        for (unsigned n = readIdx; n < nextReadIdx; n++) {
-            value = (value << 8) + buff[n];
-        }
+        value = *(uint32_t *) (buff); // dereferences 4 bytes of data at the specified buff address
 
         readIdx = (nextReadIdx) % buffSize;
 
