@@ -144,6 +144,10 @@ void setup() {
 //  audioChip.gain(gain); //gain 0...11.27 db
 //  audioChip.loudness(loudness); //true or false  
 
+    delay(2000);
+
+    Serial.println("Initialized");
+
 }
 
 

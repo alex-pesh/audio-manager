@@ -79,3 +79,6 @@ Thumbs.db
 .vscode/launch.json
 .vscode/ipch
 
+
+cmake-build-debug
+CMakeLists.txt.user
