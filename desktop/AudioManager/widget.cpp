@@ -47,7 +47,9 @@ Widget::Widget(QWidget *parent)
     }
 */
 
-    handler->connectTo("/dev/ttyUSB0");
+//    handler->connectTo("/dev/ttyUSB0");
+//    handler->connectTo("/tmp/simavr-uart0-tap");
+    handler->connectTo("/tmp/simavr-uart0");
 
     ui->setupUi(this);
 
