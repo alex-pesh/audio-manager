@@ -4,6 +4,7 @@
 //#include <cstdint>
 //#include <cstring>
 
+#define int_size sizeof (uint32_t)
 
 class CyclicBuff {
 
@@ -12,14 +13,14 @@ private:
 
 public:
     char* buff;
-    int buffSize = 0;
-    int readIdx = 0;
-    int writeIdx = 0;
+    size_t buffSize = 0;
+    size_t readIdx = 0;
+    size_t writeIdx = 0;
 
     /**
      * @param size Buffer size in bytes
     */
-    explicit CyclicBuff(int size) {
+    explicit CyclicBuff(size_t size) {
         buffSize = size + 1;
         buff = new char[buffSize];
     }
@@ -28,8 +29,8 @@ public:
         delete [] buff;
     }
 
-    int putChar(char value) {
-        int nextIdx = (writeIdx + 1) % buffSize;
+    uint8_t putChar(char value) {
+        size_t nextIdx = (writeIdx + 1) % buffSize;
 
         if (nextIdx == readIdx) {
             return 0;
@@ -42,7 +43,7 @@ public:
     }
 
 
-    int getChar(char *value) {
+    uint8_t getChar(char *value) {
         if (readIdx == writeIdx) {
             return 0;
         }
@@ -54,8 +55,8 @@ public:
     }
 
 
-    int putInt(int value) {
-        int nextIdx = (writeIdx + 4) % buffSize;
+    uint8_t putInt(uint32_t value) {
+        size_t nextIdx = (writeIdx + int_size) % buffSize;
 
         if (nextIdx == readIdx) {
             return 0;
@@ -75,7 +76,7 @@ public:
 
 
     uint32_t getInt() {
-        unsigned nextReadIdx = readIdx + 4;
+        size_t nextReadIdx = readIdx + int_size;
         if (nextReadIdx > writeIdx) { // don't perform read until the next 4 bites is written
             return 0;
         }
