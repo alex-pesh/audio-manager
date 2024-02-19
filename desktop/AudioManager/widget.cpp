@@ -20,7 +20,6 @@ Widget::Widget(QWidget *parent)
     , handler(new SerialHandler())
 
 {
-
 /*
     QString portName = "/dev/ttyUSB0";
     serial->setPortName(portName);
@@ -47,11 +46,13 @@ Widget::Widget(QWidget *parent)
     }
 */
 
+    ui->setupUi(this);
+
 //    handler->connectTo("/dev/ttyUSB0");
 //    handler->connectTo("/tmp/simavr-uart0-tap");
-    handler->connectTo("/tmp/simavr-uart0");
+//    handler->connectTo("/tmp/simavr-uart0");
 
-    ui->setupUi(this);
+    handler->connectTo(ui->deviceComboBox->currentText());
 
 }
 
@@ -63,6 +64,21 @@ Widget::~Widget()
     delete ui;
 }
 
+
+void Widget::on_deviceComboBox_currentTextChanged(const QString &arg1)
+{
+
+}
+
+
+void Widget::on_connectCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        handler->connectTo(ui->deviceComboBox->currentText());
+    } else {
+        handler->disconnect();
+    }
+}
 
 void Widget::on_volumeSlider_valueChanged(int value)
 {
@@ -183,6 +199,10 @@ void Widget::on_bassSlider_valueChanged(int value)
 void Widget::on_logClearBtn_pressed()
 {
     ui->logBrowser->clear();
+}
+
+void Widget::connectionError(const QString &_t1) {
+
 }
 
 

@@ -17,11 +17,13 @@ public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
 
+
 private slots:
+    void on_deviceComboBox_currentTextChanged(const QString &arg1);
+
+    void on_connectCheckBox_toggled(bool checked);
 
     void on_volumeSlider_valueChanged(int value);
-
-//    void on_volumeSlider_rangeChanged(int min, int max);
 
     void on_balanceSlider_valueChanged(int value);
 
@@ -31,14 +33,13 @@ private slots:
 
     void on_muteCheckBox_toggled(bool checked);
 
-//    void on_muteCheckBox_clicked(bool checked);
-
     void on_logClearBtn_pressed();
+
+    void connectionError(const QString & _t1);
 
 private:
     Ui::Widget *ui;
     QSerialPort *serial;
-
     SerialHandler *handler;
 };
 #endif // WIDGET_H

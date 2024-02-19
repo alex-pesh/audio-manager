@@ -1,4 +1,5 @@
 #include "handler.h"
+#include <QApplication>
 #include <QtSerialPort/QSerialPort>
 #include <QThread>
 
@@ -7,7 +8,6 @@
 SerialHandler::SerialHandler(QObject *parent) : QObject(parent) {
 
     m_serial = new QSerialPort();
-    m_receiver = new Receiver(*m_serial);
 }
 
 SerialHandler::~SerialHandler() {
@@ -17,11 +17,15 @@ SerialHandler::~SerialHandler() {
     }
 
     delete m_serial;
-//    delete m_receiver;
+    delete m_receiver;
 }
 
 
 void SerialHandler::connectTo(const QString& portName) {
+
+    if (m_serial && m_serial->isOpen()) {
+        disconnect();
+    }
 
     m_serial->setPortName(portName);
     m_serial->setBaudRate(QSerialPort::BaudRate::Baud9600);
@@ -39,13 +43,14 @@ void SerialHandler::connectTo(const QString& portName) {
 
 
     QThread *thread = new QThread();
-    Receiver *receiver = m_receiver; //new Receiver() ;
-    receiver->moveToThread(thread);
+    thread->setObjectName("Receiver_Thread");
+    m_receiver = new Receiver(*m_serial); //new Receiver() ;
+    m_receiver->moveToThread(thread);
 
 //    connect(receiver, SIGNAL(error(QStrin)), this, SLOT(onReceiverError(QString)));
-    connect(thread, SIGNAL(started()), receiver, SLOT(process()));
-    connect(receiver, SIGNAL(finished()), thread, SLOT(quit()));
-    connect(receiver, SIGNAL(finished()), receiver, SLOT(deleteLater()));
+    connect(thread, SIGNAL(started()), m_receiver, SLOT(process()));
+    connect(m_receiver, SIGNAL(finished()), thread, SLOT(quit()));
+    connect(m_receiver, SIGNAL(finished()), m_receiver, SLOT(deleteLater()));
     connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
     thread->start();
@@ -53,20 +58,25 @@ void SerialHandler::connectTo(const QString& portName) {
 
 
 void SerialHandler::disconnect() {
+    if (!m_serial->isOpen()) {
+        return;
+    }
     m_receiver->stop();
     m_serial->close();
+}
+
+bool SerialHandler::isConnected() {
+    return m_serial->isOpen();
 }
 
 
 void SerialHandler::sendCommand(const CMD &cmd, const int value) {
     if (m_serial->isOpen()) {
 
-        char cmd = 1;
-//        value = (cmd << 16) | (value & ~0xFFFF0000);
-        char buf[4] = {0, cmd, 0, (char) value};
+//        uint32_t data = (cmd << 16) | (value & ~0xFFFF0000);
+        char buf[4] = {(char) cmd, 0, (char) value, 0};
 
-        qDebug()  << "Sending data: " << QString(buf);
-
+//        qDebug()  << "Sending data: " << QString(ccc);
         qint64 length = m_serial->write(buf, 4);
         m_serial->flush();
 
@@ -76,12 +86,13 @@ void SerialHandler::sendCommand(const CMD &cmd, const int value) {
 }
 
 
+
 Receiver::Receiver(QSerialPort &serial) {
     m_serial = &serial;
 }
 
 Receiver::~Receiver() {
-
+    qDebug() << "Receiver is destructed";
 }
 
 void Receiver::process() {
@@ -95,7 +106,7 @@ void Receiver::process() {
 
             char respBuff[available];
             while (available > 0 && (readSize = m_serial->readLine(respBuff, available)) > 0) {
-                QThread::msleep(100);
+                QThread::msleep(10);
                 QString respString = QString(respBuff);
                 qDebug() << respString;
             }

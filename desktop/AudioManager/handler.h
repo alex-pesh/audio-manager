@@ -7,7 +7,7 @@
 
 
 enum CMD {
-    SET_VOLUME,
+    SET_VOLUME = 1,
     SET_BALANCE,
     SET_TREBLE,
     SET_BASS
@@ -59,6 +59,7 @@ public:
 
     void connectTo(const QString &portName);
     void disconnect();
+    bool isConnected();
     void sendCommand(const CMD &cmd, int value);
 
 signals:
