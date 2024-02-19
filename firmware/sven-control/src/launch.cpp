@@ -1,5 +1,5 @@
 #define DEBUG_MODE  0
-#define SERIAL_MODE ~DEBUG_MODE 
+#define SERIAL_MODE ~DEBUG_MODE
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -28,18 +28,19 @@
 unsigned char startResult;
 char i2cBuff[BUFF_SIZE];
 volatile int rxLength = 0;
+volatile boolean serialReady = false;
 CyclicBuff serialBuff(64);
 
 
 PT2313 audioChip;
-int volume = 33, 
-    bass = 5, 
-    treble = 5, 
+int volume = 33,
+    bass = 5,
+    treble = 5,
     balance = 0,
     gain = 3;
 bool muted = false;
 bool loudness = true;
-    
+
 
 void printBuff() {
 #if SERIAL_MODE
@@ -51,7 +52,7 @@ void printBuff() {
 
   Serial.println();
   Serial.flush();
-  
+
 #endif  // SERIAL_MODE
 }
 
@@ -61,7 +62,7 @@ void printVal(const char label[], uint32_t value) {
 
     Serial.print(label);
     Serial.print(" ");
-    Serial.print(value, DEC);  
+    Serial.print(value, DEC);
     Serial.print("(0x");
     Serial.print(value, HEX);
     Serial.print(")");
@@ -78,7 +79,7 @@ void printVal(const char label[], const char *value, int offset, int size) {
     Serial.print(label);
     Serial.print(" ");
     for (uint8_t i = offset; i < offset + size; i++) {
-      Serial.print((uint8_t) value[i], DEC);  
+      Serial.print((uint8_t) value[i], DEC);
       Serial.print("(0x");
       Serial.print((uint8_t) value[i], HEX);
       Serial.print(")");
@@ -119,7 +120,7 @@ void wireReceiveHandler(int numBytes) {
 
 
 void setup() {
-  
+
 #if DEBUG_MODE
   debug_init();
 #endif  // DEBUG_MODE
@@ -151,47 +152,46 @@ void setup() {
 }
 
 
-
 void processSerial() {
 #if SERIAL_MODE
 
-  uint32_t serialData = serialBuff.getInt();
-  if (serialData <= 0) {
-    return;
-  }
+    while (serialReady) {
+        size_t cmdSize = 4;
+        char buff[cmdSize];
 
-  uint16_t cmd = (uint16_t) ((serialData >> 16) & 0xFF);
-  uint16_t val = (serialData & ~0xFFFF0000);
-
-  // Serial.print("Received bytes: ");
-  // Serial.print(readLength);
-  // Serial.println();
-
-  printVal("Data: ", serialData);
-  printVal("Command: ", cmd);
-  printVal("Value: ", val);
+        while (Serial.available() > 0) {
+            if (Serial.readBytes(buff, cmdSize) < cmdSize) {
+                serialReady = false;
+                break;
+            }
+            uint16_t cmd = *((uint16_t *) buff);
+            int16_t val = *((int16_t *) (buff + 2));
 
 
-  switch(cmd) {
-    case 1:
-      volume = audioChip.volume(val);
-      printVal("Volume set: ", volume);
-    break;
-    
-    case 2: 
-      treble = audioChip.treble(val);
-      printVal("Treble set: ", treble);
-    break;
+            printVal("Data: ", buff, 0, 4);
+//            printVal("Command: ", cmd);
+//            printVal("Value: ", val);
 
-    case 3: 
-      bass = audioChip.bass(val);
-      printVal("Bass set: ", bass);
-    break;
+            switch (cmd) {
+                case 1:
+                    volume = audioChip.volume(val);
+                    printVal("Volume set: ", volume);
+                    break;
 
-    case 4: 
-      balance = audioChip.balance(val);
-      printVal("Balance set: ", balance);
-    break;
+                case 2:
+                    treble = audioChip.treble(val);
+                    printVal("Treble set: ", treble);
+                    break;
+
+                case 3:
+                    bass = audioChip.bass(val);
+                    printVal("Bass set: ", bass);
+                    break;
+
+                case 4:
+                    balance = audioChip.balance(val);
+                    printVal("Balance set: ", balance);
+                    break;
 
 /*
     case 5: 
@@ -199,15 +199,19 @@ void processSerial() {
       Serial.print("loudness: ");
       Serial.println(loudness);
     break;
-*/   
-    case 6: 
-      muted = audioChip.mute(val == 1);
-      printVal("Mited: ", muted);
-    break;
+*/
+                case 6:
+                    muted = audioChip.mute(val == 1);
+                    printVal("Mited: ", muted);
+                    break;
 
-    default:
-      printVal("Unknown command: ", cmd);
-  }
+                default:
+                    printVal("Unknown command: ", cmd);
+            }
+        }
+
+        serialReady = false;
+    }
 
 #endif  // SERIAL_MODE
 }
@@ -252,18 +256,19 @@ void loop() {
 void serialEvent() {
 #if SERIAL_MODE
 
-  char buf[4];
-  int available = Serial.available();
-  size_t readLength = 0;
+  serialReady = true;
 
-  printVal("Serial event. Available: ", available);
+    int available = Serial.available();
+    printVal("Serial event. Available: ", available);
+/*
+
 
 
   while ((available = Serial.available()) > 0) {
     // int readVal = Serial.read();
     // serialBuff.putInt(readVal);
-    // int readVal = Serial.readBytes(serialBuff.buff, 4); 
-    
+    // int readVal = Serial.readBytes(serialBuff.buff, 4);
+
     char c = Serial.read();
     serialBuff.putChar(c);
 
@@ -274,6 +279,7 @@ void serialEvent() {
 
   printVal("Value in buff by readIdx: ", serialBuff.buff, serialBuff.readIdx, 4);
   // printVal("Read int: ", serialBuff.getInt());
+*/
 
 #endif  // SERIAL_MODE
 }
