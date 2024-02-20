@@ -19,7 +19,11 @@ public:
 
 
 private slots:
-    void on_deviceComboBox_currentTextChanged(const QString &arg1);
+    void on_connect();
+
+    void on_connectionError(QString &error);
+
+    void on_deviceComboBox_currentTextChanged(const QString &deviceName);
 
     void on_connectCheckBox_toggled(bool checked);
 
@@ -35,11 +39,10 @@ private slots:
 
     void on_logClearBtn_pressed();
 
-    void connectionError(const QString & _t1);
-
 private:
     Ui::Widget *ui;
     QSerialPort *serial;
     SerialHandler *handler;
+
 };
 #endif // WIDGET_H

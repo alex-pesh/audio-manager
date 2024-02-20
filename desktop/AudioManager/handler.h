@@ -8,15 +8,11 @@
 
 enum CMD {
     SET_VOLUME = 1,
-    SET_BALANCE,
     SET_TREBLE,
-    SET_BASS
-};
-
-
-class ReceiverThread : public QThread
-{
-
+    SET_BASS,
+    SET_BALANCE,
+    SET_LOUDNESS,
+    SET_MUTE
 };
 
 
@@ -60,11 +56,12 @@ public:
     void connectTo(const QString &portName);
     void disconnect();
     bool isConnected();
-    void sendCommand(const CMD &cmd, int value);
+    void sendCommand(const CMD &cmd, int16_t value);
 
 signals:
-    void connectionError(const QString &error);
-
+    void connected();
+    void disconnected();
+    void connectionError(QString &error);
 
 };
 

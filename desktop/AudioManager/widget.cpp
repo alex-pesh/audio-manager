@@ -20,41 +20,19 @@ Widget::Widget(QWidget *parent)
     , handler(new SerialHandler())
 
 {
-/*
-    QString portName = "/dev/ttyUSB0";
-    serial->setPortName(portName);
-    serial->setBaudRate(QSerialPort::BaudRate::Baud9600);
-    serial->setDataBits(QSerialPort::Data8);
-    serial->setParity(QSerialPort::NoParity);
-    serial->setStopBits(QSerialPort::OneStop);
-    serial->setFlowControl(QSerialPort::NoFlowControl);
-
-    if (!serial->open(QIODevice::ReadWrite)) {
-        qDebug() << "Failed to open serial " << portName << ": " << serial->errorString();
-
-        QMessageBox msgBox;
-        msgBox.setText("Error");
-        msgBox.setInformativeText(QString::fromLatin1(
-                                   "Failed to open serial port ").append(portName).append(": ").append(serial->errorString()));
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setIcon(QMessageBox::Icon::Critical);
-
-        int result = msgBox.exec();
-        if (result== QMessageBox::Ok) {
-            exit(1);
-        }
-    }
-*/
-
-    ui->setupUi(this);
 
 //    handler->connectTo("/dev/ttyUSB0");
 //    handler->connectTo("/tmp/simavr-uart0-tap");
 //    handler->connectTo("/tmp/simavr-uart0");
 
-    handler->connectTo(ui->deviceComboBox->currentText());
+    connect(handler, SIGNAL(connected()), this, SLOT(on_connect()));
+    connect(handler, SIGNAL(connectionError(QString&)), this, SLOT(on_connectionError(QString&)));
 
+    ui->setupUi(this);
+
+    handler->connectTo(ui->deviceComboBox->currentText());
 }
+
 
 Widget::~Widget()
 {
@@ -64,10 +42,33 @@ Widget::~Widget()
     delete ui;
 }
 
+void Widget::on_connect() {
+    ui->controlGroupBox->setEnabled(true);
+}
 
-void Widget::on_deviceComboBox_currentTextChanged(const QString &arg1)
+
+void Widget::on_connectionError(QString &error)
 {
+    ui->controlGroupBox->setEnabled(false);
+    ui->connectCheckBox->setCheckState(Qt::Unchecked);
 
+    QMessageBox msgBox;
+    msgBox.setText("Error");
+    msgBox.setInformativeText(error);
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    msgBox.setIcon(QMessageBox::Icon::Critical);
+
+    int result = msgBox.exec();
+    if (result== QMessageBox::Ok) {
+//        exit(1);
+    }
+}
+
+
+void Widget::on_deviceComboBox_currentTextChanged(const QString &deviceName)
+{
+    qDebug() << "Device changed: " << deviceName;
+    on_connectCheckBox_toggled(false);
 }
 
 
@@ -76,73 +77,30 @@ void Widget::on_connectCheckBox_toggled(bool checked)
     if (checked) {
         handler->connectTo(ui->deviceComboBox->currentText());
     } else {
+        ui->controlGroupBox->setEnabled(false);
+        ui->connectCheckBox->setCheckState(Qt::Unchecked);
         handler->disconnect();
     }
 }
 
+
 void Widget::on_volumeSlider_valueChanged(int value)
 {
-    qDebug() << "\n========= Volume =========";
-    ui->logBrowser->append("========= Volume =========");
+//    ui->logBrowser->append("========= Volume =========");
 
     value = value*63/100;
     qDebug() << "Volume: " << value;
 
     handler->sendCommand(CMD::SET_VOLUME, value);
-
-/*
-    if (serial->isOpen()) {
-
-        char cmd = 1;
-//        value = (cmd << 16) | (value & ~0xFFFF0000);
-        char buf[4] = {0, cmd, 0, (char) value};
-
-        qDebug()  << "Sending data: " << QString(buf);
-
-        qint64 length = serial->write(buf, 4);
-        serial->flush();
-
-        qDebug() << "Bytes sent: " << length;
-        qDebug() << "";
-
-
-//        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-        qint64 readSize = 0;
-        qint64 available = serial->bytesAvailable();
-        char respBuff[available];
-
-        qDebug() << "Responce: ";
-        ui->logBrowser->append("Responce: ");
-
-        //        QByteArray dataResp = serial->readAll();
-
-        while(available > 0 && (readSize = serial->readLine(respBuff, available)) > 0) {
-            QString respString = QString(respBuff);
-            qDebug() << respString;
-            ui->logBrowser->append(respString);
-        }
-
-        qDebug() << "-----------------------";
-        ui->logBrowser->append("\n");
-    }
-*/
 }
+
 
 void Widget::on_balanceSlider_valueChanged(int value)
 {
     value = value-31;
     qDebug() << "Balance: " << value;
 
-    if (serial->isOpen()) {
-        QByteArray data;
-        data.append('4').append(std::to_string(value).c_str());
-        serial->write(data);
-        data.clear();
-
-        data = serial->readAll();
-        qDebug() << "Responce: " << QString(data);
-    }
+    handler->sendCommand(CMD::SET_BALANCE, value);
 }
 
 
@@ -150,59 +108,30 @@ void Widget::on_muteCheckBox_toggled(bool value)
 {
     qDebug() << "Mute: " << value;
 
-    if (serial->isOpen()) {
-        QByteArray data;
-        data.append('6').append(value ? "1" : "0");
-        serial->write(data);
-        data.clear();
-        data = serial->readAll();
-        qDebug() << "Responce: " << QString(data);
-    }
+    handler->sendCommand(CMD::SET_MUTE, (value ? 1 : 0));
 }
 
 
 void Widget::on_trebleSlider_valueChanged(int value)
 {
-    value = (value-50)*31/50;
+    value = (value-50)*7/50;
     qDebug() << "Treble: " << value;
 
-    if (serial->isOpen()) {
-        QByteArray data;
-        data.append('2').append(std::to_string(value).c_str());
-        serial->write(data);
-        data.clear();
-
-        data = serial->readAll();
-        qDebug() << "Responce: " << QString(data);
-    }
+    handler->sendCommand(CMD::SET_TREBLE, value);
 }
 
 
 void Widget::on_bassSlider_valueChanged(int value)
 {
-    value = (value-50)*31/50;
+    value = (value-50)*7/50;
     qDebug() << "Bass: " << value;
 
-    if (serial->isOpen()) {
-        QByteArray data;
-        data.append('3').append(std::to_string(value).c_str());
-        serial->write(data);
-        data.clear();
-
-        data = serial->readAll();
-        qDebug() << "Responce: " << QString(data);
-    }
+    handler->sendCommand(CMD::SET_BASS, value);
 }
-
 
 
 void Widget::on_logClearBtn_pressed()
 {
     ui->logBrowser->clear();
 }
-
-void Widget::connectionError(const QString &_t1) {
-
-}
-
 
