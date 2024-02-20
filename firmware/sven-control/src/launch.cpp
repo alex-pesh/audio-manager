@@ -33,13 +33,22 @@ CyclicBuff serialBuff(64);
 
 
 PT2313 audioChip;
-int volume = 33,
+int16_t volume = 33,
     bass = 5,
     treble = 5,
     balance = 0,
     gain = 3;
 bool muted = false;
-bool loudness = true;
+bool loudness = false;
+
+enum CMD {
+    SET_VOLUME = 1,
+    SET_TREBLE,
+    SET_BASS,
+    SET_BALANCE,
+    SET_LOUDNESS,
+    SET_MUTE
+};
 
 
 void printBuff() {
@@ -57,7 +66,7 @@ void printBuff() {
 }
 
 
-void printVal(const char label[], uint32_t value) {
+void printVal(const char label[], int16_t value) {
 #if SERIAL_MODE
 
     Serial.print(label);
@@ -73,15 +82,15 @@ void printVal(const char label[], uint32_t value) {
 }
 
 
-void printVal(const char label[], const char *value, int offset, int size) {
+void printVal(const char label[], const char *value, uint16_t offset, uint16_t size) {
 #if SERIAL_MODE
 
     Serial.print(label);
     Serial.print(" ");
-    for (uint8_t i = offset; i < offset + size; i++) {
-      Serial.print((uint8_t) value[i], DEC);
+    for (uint16_t i = offset; i < offset + size; i++) {
+      Serial.print((int8_t) value[i], DEC);
       Serial.print("(0x");
-      Serial.print((uint8_t) value[i], HEX);
+      Serial.print((int8_t) value[i], HEX);
       Serial.print(")");
       Serial.print("  ");
     }
@@ -164,45 +173,43 @@ void processSerial() {
                 serialReady = false;
                 break;
             }
-            uint16_t cmd = *((uint16_t *) buff);
-            int16_t val = *((int16_t *) (buff + 2));
-
+            uint8_t cmd = *((uint8_t *) buff);
+            int8_t val = *((int8_t *) (buff + 2));
 
             printVal("Data: ", buff, 0, 4);
-//            printVal("Command: ", cmd);
-//            printVal("Value: ", val);
+            printVal("Command: ", cmd);
+            printVal("Value: ", val);
 
             switch (cmd) {
-                case 1:
+                case SET_VOLUME:
                     volume = audioChip.volume(val);
                     printVal("Volume set: ", volume);
                     break;
 
-                case 2:
+                case SET_TREBLE:
                     treble = audioChip.treble(val);
                     printVal("Treble set: ", treble);
                     break;
 
-                case 3:
+                case SET_BASS:
                     bass = audioChip.bass(val);
                     printVal("Bass set: ", bass);
                     break;
 
-                case 4:
+                case SET_BALANCE:
                     balance = audioChip.balance(val);
                     printVal("Balance set: ", balance);
                     break;
 
-/*
-    case 5: 
-      loudness = audioChip.loudness(!loudness);
-      Serial.print("loudness: ");
-      Serial.println(loudness);
-    break;
-*/
-                case 6:
+                case SET_LOUDNESS:
+                  loudness = audioChip.loudness(val == 1);
+                  Serial.print("Loudness set: ");
+                  Serial.println(loudness);
+                break;
+
+                case SET_MUTE:
                     muted = audioChip.mute(val == 1);
-                    printVal("Mited: ", muted);
+                    printVal("Muted: ", muted);
                     break;
 
                 default:

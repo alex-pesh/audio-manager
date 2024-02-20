@@ -36,21 +36,21 @@ Library works with most arduino compatible processors and teensy3
 #define PT2313_TREBLE_REG     0x70 //01110000
 
 class PT2313 {
-	
+
 public:
     void    initialize(unsigned char addr=PT2313_ADDR, byte source=0, bool muted=true);
-    byte	source	(byte val);
-	byte	volume	(byte val);
+    byte	source(byte val);
+	byte	volume(byte val);
 	int    	bass(int val);
-	int    	treble(int val);
+    int16_t    	treble(int16_t val);
 	int		balance	(int val);
-	bool mute(bool value);
-	byte    gain    (byte val);
+	bool    mute(bool value);
+	byte    gain(byte val);
 	bool    loudness(bool val);
 private:
-	byte 	eqsubroutine(int val);
-	void    writeByte(byte val);
-	int		boundary(int val,int min,int max);
+    int16_t 	eqSet(int16_t val);
+    int		boundary(int val,int min,int max);
+	void    writeByte(unsigned char val);
 	uint8_t	audioSwitch_reg;
 };
 

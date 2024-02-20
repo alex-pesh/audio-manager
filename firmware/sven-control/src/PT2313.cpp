@@ -55,14 +55,14 @@ byte PT2313::volume(byte val) {
 }
 
 int PT2313::bass(int val){
-	byte temp = eqsubroutine(val);
+    int temp = eqSet(val);
 	writeByte(PT2313_BASS_REG|temp);
 
 	return temp;
 }
 
-int PT2313::treble(int val){
-	byte temp = eqsubroutine(val);
+int16_t PT2313::treble(int16_t val){
+    int temp = eqSet(val);
 	writeByte(PT2313_TREBLE_REG|temp);
 
 	return temp;
@@ -142,9 +142,9 @@ bool PT2313::loudness(bool val) {
 }
 
 
-byte PT2313::eqsubroutine(int val){
-	byte temp;
-	val = boundary(val,-7,7);
+int16_t PT2313::eqSet(int16_t val){
+    int16_t temp;
+	val = (int16_t) boundary(val, -7, 7);
 	if (val < 0) {
 		temp = 7 - abs(val);
 	} else {
@@ -153,14 +153,14 @@ byte PT2313::eqsubroutine(int val){
 	return temp;
 }
 
-int PT2313::boundary(int val,int min,int max){
+int PT2313::boundary(int val, int min, int max){
 	if (val < min) val = min;
 	if (val > max) val = max;
 	return val;
 }
 
-void PT2313::writeByte(byte val) {
-    char ret = i2c_start(_addr);
+void PT2313::writeByte(unsigned char val) {
+    unsigned char ret = i2c_start(_addr);
 
     if (!ret) {
     	i2c_write(val);
