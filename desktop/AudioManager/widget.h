@@ -3,6 +3,8 @@
 
 #include "handler.h"
 #include <QWidget>
+#include <QErrorMessage>
+#include <QMessageBox>
 #include <QtSerialPort/QSerialPort>
 
 QT_BEGIN_NAMESPACE
@@ -45,4 +47,13 @@ private:
     SerialHandler *handler;
 
 };
+
+
+class MessageBox : public QMessageBox {
+    void resizeEvent(QResizeEvent *Event) override {
+        QMessageBox::resizeEvent(Event);
+        this->setFixedWidth(400);
+    }
+};
+
 #endif // WIDGET_H

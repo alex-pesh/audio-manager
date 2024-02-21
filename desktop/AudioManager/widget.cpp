@@ -1,16 +1,16 @@
 #include "widget.h"
 #include "./ui_widget.h"
 #include <QtSerialPort/QSerialPort>
-#include <QErrorMessage>
-#include <QMessageBox>
 #include <thread>
 
 #include <QDebug>
 #include <QtCore/qglobal.h>
+#include <QScreen>
 
 #ifndef __DEBUG__H
 #define __DEBUG__H
 #endif
+
 
 
 Widget::Widget(QWidget *parent)
@@ -25,10 +25,11 @@ Widget::Widget(QWidget *parent)
 //    handler->connectTo("/tmp/simavr-uart0-tap");
 //    handler->connectTo("/tmp/simavr-uart0");
 
+    move(qApp->primaryScreen()->availableGeometry().center()-rect().center());
+    ui->setupUi(this);
+
     connect(handler, SIGNAL(connected()), this, SLOT(on_connect()));
     connect(handler, SIGNAL(connectionError(QString&)), this, SLOT(on_connectionError(QString&)));
-
-    ui->setupUi(this);
 
     handler->connectTo(ui->deviceComboBox->currentText());
 }
@@ -42,6 +43,7 @@ Widget::~Widget()
     delete ui;
 }
 
+
 void Widget::on_connect() {
     ui->controlGroupBox->setEnabled(true);
 }
@@ -52,14 +54,14 @@ void Widget::on_connectionError(QString &error)
     ui->controlGroupBox->setEnabled(false);
     ui->connectCheckBox->setCheckState(Qt::Unchecked);
 
-    QMessageBox msgBox;
+    MessageBox msgBox;
     msgBox.setText("Error");
     msgBox.setInformativeText(error);
-    msgBox.setStandardButtons(QMessageBox::Ok);
-    msgBox.setIcon(QMessageBox::Icon::Critical);
+    msgBox.setStandardButtons(MessageBox::Ok);
+    msgBox.setIcon(MessageBox::Icon::Critical);
 
     int result = msgBox.exec();
-    if (result== QMessageBox::Ok) {
+    if (result== MessageBox::Ok) {
 //        exit(1);
     }
 }
