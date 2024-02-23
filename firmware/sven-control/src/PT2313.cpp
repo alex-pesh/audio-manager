@@ -3,7 +3,7 @@
 
 
 unsigned char _addr = PT2313_ADDR;
-int balanceVal = 0;
+int8_t balanceVal = 0;
 
 
 void PT2313::initialize(unsigned char addr, byte src, bool muted) {
@@ -25,8 +25,8 @@ void PT2313::initialize(unsigned char addr, byte src, bool muted) {
 }
 
 
-byte PT2313::source(byte val) {
-        val = val % 3; //range 0-2
+int8_t PT2313::source(int8_t val) {
+    val = val % 3; //range 0-2
 	switch(val){
 	case 0:
 		bitClear(audioSwitch_reg,0);
@@ -47,29 +47,29 @@ byte PT2313::source(byte val) {
 }
 
 
-byte PT2313::volume(byte val) {
+int8_t PT2313::volume(int8_t val) {
 	val = boundary(val,0,0x3F);
 	writeByte(PT2313_VOL_REG|(0x3F - val));
 
 	return val;
 }
 
-int PT2313::bass(int val){
-    int temp = eqSet(val);
+int8_t PT2313::bass(int8_t val){
+    int8_t temp = eqSet(val);
 	writeByte(PT2313_BASS_REG|temp);
 
 	return temp;
 }
 
-int16_t PT2313::treble(int16_t val){
-    int temp = eqSet(val);
+int8_t PT2313::treble(int8_t val){
+    int8_t temp = eqSet(val);
 	writeByte(PT2313_TREBLE_REG|temp);
 
 	return temp;
 }
 
-int PT2313::balance(int val) {
-	val = boundary(val,-31,31);
+int8_t PT2313::balance(int8_t val) {
+	val = boundary(val, -31, 31);
 	if (val == 0) {
 		writeByte(PT2313_L_ATT_REG|0x00);
 		writeByte(PT2313_R_ATT_REG|0x00);
@@ -142,9 +142,9 @@ bool PT2313::loudness(bool val) {
 }
 
 
-int16_t PT2313::eqSet(int16_t val){
-    int16_t temp;
-	val = (int16_t) boundary(val, -7, 7);
+int8_t PT2313::eqSet(int8_t val) {
+    int8_t temp;
+	val = (int8_t) boundary(val, -7, 7);
 	if (val < 0) {
 		temp = 7 - abs(val);
 	} else {
@@ -153,7 +153,7 @@ int16_t PT2313::eqSet(int16_t val){
 	return temp;
 }
 
-int PT2313::boundary(int val, int min, int max){
+int8_t PT2313::boundary(int8_t val, int8_t min, int8_t max){
 	if (val < min) val = min;
 	if (val > max) val = max;
 	return val;

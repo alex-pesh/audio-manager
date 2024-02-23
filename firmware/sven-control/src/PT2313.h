@@ -39,17 +39,17 @@ class PT2313 {
 
 public:
     void    initialize(unsigned char addr=PT2313_ADDR, byte source=0, bool muted=true);
-    byte	source(byte val);
-	byte	volume(byte val);
-	int    	bass(int val);
-    int16_t    	treble(int16_t val);
-	int		balance	(int val);
+    int8_t	source(int8_t val);
+    int8_t  volume(int8_t val);
+    int8_t  bass(int8_t val);
+    int8_t  treble(int8_t val);
+    int8_t  balance	(int8_t val);
 	bool    mute(bool value);
-	byte    gain(byte val);
-	bool    loudness(bool val);
+    bool    loudness(bool val);
+    byte    gain(byte val);
 private:
-    int16_t 	eqSet(int16_t val);
-    int		boundary(int val,int min,int max);
+    int8_t  eqSet(int8_t val);
+    int8_t  boundary(int8_t val, int8_t min, int8_t max);
 	void    writeByte(unsigned char val);
 	uint8_t	audioSwitch_reg;
 };
