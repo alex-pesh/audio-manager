@@ -26,7 +26,10 @@ Widget::Widget(QWidget *parent)
 //    handler->connectTo("/tmp/simavr-uart0");
 
     move(qApp->primaryScreen()->availableGeometry().center()-rect().center());
+
     ui->setupUi(this);
+
+//    for (CMD cmd = CMD(SET_VOLUME); cmd < CUSTOM; cmd = CMD(cmd)) { }
 
     connect(handler, SIGNAL(connected()), this, SLOT(on_connect()));
     connect(handler, SIGNAL(connectionError(QString&)), this, SLOT(on_connectionError(QString&)));
@@ -43,6 +46,9 @@ Widget::~Widget()
     delete ui;
 }
 
+void Widget::showEvent(QShowEvent *event) {
+
+}
 
 void Widget::on_connect() {
     ui->controlGroupBox->setEnabled(true);
@@ -55,6 +61,7 @@ void Widget::on_connectionError(QString &error)
     ui->connectCheckBox->setCheckState(Qt::Unchecked);
 
     MessageBox msgBox;
+//    msgBox.setParent(this);
     msgBox.setText("Error");
     msgBox.setInformativeText(error);
     msgBox.setStandardButtons(MessageBox::Ok);
@@ -137,3 +144,13 @@ void Widget::on_logClearBtn_pressed()
     ui->logBrowser->clear();
 }
 
+
+void Widget::on_sendBtn_pressed()
+{
+    QString command = ui->cmdValueText->toPlainText();
+
+    if (command.length() > 0) {
+        handler->sendCommand(command);
+        qDebug() << "Sending command: " << command << endl;
+    }
+}

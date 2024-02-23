@@ -92,6 +92,18 @@ void SerialHandler::sendCommand(const CMD &cmd, const int16_t value) {
     }
 }
 
+void SerialHandler::sendCommand(const QString &input) {
+    QStringList values = input.split(QRegExp("\\s+"));
+    int32_t inputCmd = values.at(0).toInt();
+    int16_t value = (int16_t) values.at(1).toInt();
+
+    CMD cmd = CMD(inputCmd);
+    if (!cmd) {
+        cmd = CMD::CUSTOM;
+    }
+
+    sendCommand(cmd, value);
+}
 
 
 Receiver::Receiver(QSerialPort &serial) {
@@ -111,7 +123,7 @@ void Receiver::process() {
         QByteArray respBuff;
         do {
             respBuff += m_serial->readAll();
-            QThread::msleep(100);
+            QThread::msleep(200);
         } while (!m_quit && m_serial->bytesAvailable() > 0);
 
         QString respString = QString(respBuff).trimmed();

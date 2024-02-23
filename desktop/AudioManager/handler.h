@@ -4,6 +4,7 @@
 #include <QMutex>
 #include <QThread>
 #include <QtSerialPort/QSerialPort>
+#include <type_traits>
 
 
 enum CMD {
@@ -11,9 +12,11 @@ enum CMD {
     SET_TREBLE,
     SET_BASS,
     SET_BALANCE,
+    SET_MUTE,
     SET_LOUDNESS,
-    SET_MUTE
+    CUSTOM = 100
 };
+
 
 
 class Receiver: public QObject
@@ -57,6 +60,7 @@ public:
     void disconnect();
     bool isConnected();
     void sendCommand(const CMD &cmd, int16_t value);
+    void sendCommand(const QString &value);
 
 signals:
     void connected();

@@ -19,6 +19,8 @@ public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
 
+private slots:
+    void on_sendBtn_pressed();
 
 private slots:
     void on_connect();
@@ -46,6 +48,7 @@ private:
     QSerialPort *serial;
     SerialHandler *handler;
 
+    void showEvent(QShowEvent *event) override;
 };
 
 
