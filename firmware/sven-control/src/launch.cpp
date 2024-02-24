@@ -25,13 +25,6 @@
 #define I2C_BUFF_SIZE    4
 #define SERIAL_BUFF_SIZE    4
 
-#define IDX_VOLUME      0
-#define IDX_TREBLE      1
-#define IDX_BASS        2
-#define IDX_BALANCE     3
-#define IDX_MUTED       4
-#define IDX_LOUDNESS    5
-
 unsigned char startResult;
 char i2cBuff[I2C_BUFF_SIZE];
 char serialBuff[SERIAL_BUFF_SIZE];
@@ -41,7 +34,6 @@ volatile boolean serialReady = false;
 
 
 PT2313 audioChip;
-int8_t values[6];
 volatile bool saved = false;
 
 enum CMD {
@@ -51,8 +43,55 @@ enum CMD {
     SET_BALANCE,
     SET_MUTE,
     SET_LOUDNESS,
-    CUSTOM = 100
+    SYNC = 100,
+    CUSTOM = 200
 };
+
+struct Values {
+    int8_t volume = 33;
+    int8_t treble = 5;
+    int8_t bass = 5;
+    int8_t balance = 0;
+    uint8_t mute_loud = 0;
+
+    void muted(bool value) {
+        value ? bitSet(mute_loud, 0) : bitClear(mute_loud, 0);
+    }
+
+    int8_t muted() const {
+        return bitRead(mute_loud, 0);
+    }
+
+    void loudnessOn(bool value) {
+        value ? bitSet(mute_loud, 1) : bitClear(mute_loud, 1);
+    }
+
+    uint8_t loudnessOn() const {
+        return bitRead(mute_loud, 1);
+    }
+
+} values;
+
+
+void saveValues() {
+    EEPROM.put(0, values);
+}
+
+
+void restoreValues() {
+    values.volume = (int8_t) EEPROM.read(0);
+    values.treble = (int8_t) EEPROM.read(1);
+    values.bass = (int8_t) EEPROM.read(2);
+    values.balance = (int8_t) EEPROM.read(3);
+    values.mute_loud = (int8_t) EEPROM.read(4);
+
+    audioChip.volume(values.volume);
+    audioChip.treble(values.treble);
+    audioChip.bass(values.bass);
+    audioChip.balance(values.balance);
+    audioChip.mute(values.muted());
+    audioChip.loudness(values.loudnessOn());
+}
 
 
 void printBuff() {
@@ -70,16 +109,52 @@ void printBuff() {
 }
 
 
+#define \
+printDecimal(value) \
+    Serial.print((value), DEC); \
+    Serial.print("(0x");        \
+    Serial.print((value), HEX); \
+    Serial.print(")");          \
+    Serial.print("  ");
+
+
 void printVal(const char label[], int16_t value) {
 #if SERIAL_MODE
 
     Serial.print(label);
     Serial.print(" ");
-    Serial.print(value, DEC);
-    Serial.print("(0x");
-    Serial.print(value, HEX);
-    Serial.print(")");
+    printDecimal(value);
     Serial.println();
+    Serial.flush();
+
+#endif  // SERIAL_MODE
+}
+
+void printValues(const char label[]) {
+#if SERIAL_MODE
+
+    Serial.print(label);
+    Serial.print(" ");
+    printDecimal(values.volume)
+    printDecimal(values.treble)
+    printDecimal(values.bass)
+    printDecimal(values.balance)
+    printDecimal(values.mute_loud)
+    Serial.println();
+    Serial.flush();
+
+#endif  // SERIAL_MODE
+}
+
+void sendValues() {
+#if SERIAL_MODE
+
+    Serial.write(CMD::SYNC);
+    Serial.write(values.volume);
+    Serial.write(values.treble);
+    Serial.write(values.bass);
+    Serial.write(values.balance);
+    Serial.write(values.mute_loud);
     Serial.flush();
 
 #endif  // SERIAL_MODE
@@ -92,13 +167,8 @@ void printVal(const char label[], const char *value, uint16_t offset, uint16_t s
     Serial.print(label);
     Serial.print(" ");
     for (uint16_t i = offset; i < offset + size; i++) {
-      Serial.print((int8_t) value[i], DEC);
-      Serial.print("(0x");
-      Serial.print((int8_t) value[i], HEX);
-      Serial.print(")");
-      Serial.print("  ");
+        printDecimal((int8_t) value[i]);
     }
-
     Serial.println();
     Serial.flush();
 
@@ -143,6 +213,8 @@ void setup() {
     Serial.setTimeout(0);
 #endif  // SERIAL_MODE
 
+    pinMode(13, OUTPUT);
+
     Wire.begin(ADDR_SLAVE);
     Wire.onReceive(wireReceiveHandler);
 
@@ -150,22 +222,17 @@ void setup() {
 
     i2c_init();
 
-    for (unsigned int i = 0; i < sizeof (values); i++) {
-        values[i] = (int8_t) EEPROM.read(i);
-    }
-
-    audioChip.initialize(PT2313_ADDR, 0, false);    //source 1, mute off
-    audioChip.source(0);                            //select your source 0...3
-    audioChip.volume(values[IDX_VOLUME]);           //Vol 0...62 : 63=muted
-    audioChip.treble(values[IDX_TREBLE]);           //treble -7...+7
-    audioChip.bass(values[IDX_BASS]);               //bass -7...+7
-    audioChip.balance(values[IDX_BALANCE]);         //-31...+31
-    audioChip.mute(values[IDX_MUTED]);
-    audioChip.loudness(values[IDX_LOUDNESS]);
+    audioChip.initialize(PT2313_ADDR, 0, false);
+    audioChip.source(0);
+    audioChip.volume(values.volume);
+    audioChip.treble(values.treble);
+    audioChip.bass(values.bass);
+    audioChip.balance(values.balance);
+    audioChip.mute(values.muted());
+    audioChip.loudness(values.loudnessOn());
 //  audioChip.gain(gain); //gain 0...11.27 db
-//  audioChip.loudness(loudness); //true or false  
 
-    printVal("Initialized: ", (char*) values, 0, sizeof (values));
+    printValues("Initialized: ");
 
 }
 
@@ -189,44 +256,48 @@ void processSerial() {
 
             switch (cmd) {
                 case SET_VOLUME:
-                    values[IDX_VOLUME] = audioChip.volume(val);
-                    printVal("Volume set: ", values[IDX_VOLUME]);
+                    values.volume = audioChip.volume(val);
+                    printVal("Volume set: ", values.volume);
                     break;
 
                 case SET_TREBLE:
-                    values[IDX_TREBLE] = audioChip.treble(val);
-                    printVal("Treble set: ", values[IDX_TREBLE]);
+                    values.treble = audioChip.treble(val);
+                    printVal("Treble set: ", values.treble);
                     break;
 
                 case SET_BASS:
-                    values[IDX_BASS] = audioChip.bass(val);
-                    printVal("Bass set: ", values[IDX_BASS]);
+                    values.bass = audioChip.bass(val);
+                    printVal("Bass set: ", values.bass);
                     break;
 
                 case SET_BALANCE:
-                    values[IDX_BALANCE] = audioChip.balance(val);
-                    printVal("Balance set: ", values[IDX_BALANCE]);
+                    values.balance = audioChip.balance(val);
+                    printVal("Balance set: ", values.balance);
                     break;
 
                 case SET_MUTE:
-                    values[IDX_MUTED] = audioChip.mute(val == 1);
-                    printVal("Muted: ", values[IDX_MUTED]);
+                    values.muted(audioChip.mute(val == 1));
+                    printVal("Muted: ", values.muted());
                     break;
 
                 case SET_LOUDNESS:
-                    values[IDX_LOUDNESS] = audioChip.loudness(val == 1);
-                  printVal("Loudness set: ", values[IDX_LOUDNESS]);
+                    values.loudnessOn(audioChip.loudness(val == 1));
+                    printVal("Loudness set: ", values.loudnessOn());
                 break;
+
+                case SYNC:
+//                    sendValues();
+                    printValues("Current values: ");
+
+                    break;
 
                 case CUSTOM:
                     if (val == 0) {
-                        for (unsigned int i = 0; i < sizeof (values); i++) {
-                            values[i] = (int8_t) EEPROM.read(i);
-                        }
-                        printVal("Read from eeprom: ", (char*) values, 0, sizeof (values));
+                        restoreValues();
+                        printValues("Read from eeprom: ");
                     } else {
-                        EEPROM.put(0, values);
-                        printVal("Written to eeprom: ", (char*) values, 0, sizeof (values));
+                        saveValues();
+                        printValues("Written to eeprom: ");
                     }
 
                     break;
@@ -275,11 +346,29 @@ void loop() {
 
     if (!saved) {
         int analogIn = analogRead(A7);
-        if (analogIn > 200 && analogIn < 810) {
-            EEPROM.put(0, values);
-            saved = true;
-            printVal("Saved to eeprom: ", (char*) values, 0, sizeof (values));
+        if (analogIn > 200 && analogIn < 800) {
+
+            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
+//            delay(200);                      // wait for a second
+//            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+//            delay(200);
+//            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
+//            delay(200);                      // wait for a second
+//            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+//            delay(200);
+//            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
+//            delay(200);                      // wait for a second
+//            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+//            delay(200);
+
             printVal("Voltage: ", analogIn);
+
+/*
+            saveValues();
+            saved = true;
+            printValues("Saved to eeprom: ");
+            printVal("Voltage: ", analogIn);
+*/
         }
     }
 

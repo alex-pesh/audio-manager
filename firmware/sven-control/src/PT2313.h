@@ -39,11 +39,11 @@ class PT2313 {
 
 public:
     void    initialize(unsigned char addr=PT2313_ADDR, byte source=0, bool muted=true);
-    int8_t	source(int8_t val);
-    int8_t  volume(int8_t val);
-    int8_t  bass(int8_t val);
-    int8_t  treble(int8_t val);
-    int8_t  balance	(int8_t val);
+    int8_t	source(int8_t val);     // 0...3
+    int8_t  volume(int8_t val);     // 0...62 : 63=muted
+    int8_t  bass(int8_t val);       // bass -7...+7
+    int8_t  treble(int8_t val);     // -7...+7
+    int8_t  balance	(int8_t val);   // -31...+31
 	bool    mute(bool value);
     bool    loudness(bool val);
     byte    gain(byte val);
