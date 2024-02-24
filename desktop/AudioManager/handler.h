@@ -14,9 +14,9 @@ enum CMD {
     SET_BALANCE,
     SET_MUTE,
     SET_LOUDNESS,
-    CUSTOM = 100
+    SYNC = 100,
+    CUSTOM = 200
 };
-
 
 
 class Receiver: public QObject

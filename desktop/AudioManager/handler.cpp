@@ -128,7 +128,9 @@ void Receiver::process() {
 
         QString respString = QString(respBuff).trimmed();
 
+        qDebug() << "Size: " << respBuff.size();
         qDebug().noquote() << respString;
+
         qDebug() << "-------------------------------" << endl;
     }
 
