@@ -349,17 +349,17 @@ void loop() {
         if (analogIn > 200 && analogIn < 800) {
 
             digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
-//            delay(200);                      // wait for a second
-//            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
-//            delay(200);
-//            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
-//            delay(200);                      // wait for a second
-//            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
-//            delay(200);
-//            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
-//            delay(200);                      // wait for a second
-//            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
-//            delay(200);
+            delay(200);                      // wait for a second
+            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+            delay(200);
+            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
+            delay(200);                      // wait for a second
+            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+            delay(200);
+            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
+            delay(200);                      // wait for a second
+            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+            delay(200);
 
             printVal("Voltage: ", analogIn);
 
@@ -369,6 +369,8 @@ void loop() {
             printValues("Saved to eeprom: ");
             printVal("Voltage: ", analogIn);
 */
+        } else {
+            digitalWrite(13, LOW);  // turn the LED on (HIGH is the voltage level)
         }
     }
 
