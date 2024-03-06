@@ -34,6 +34,7 @@ Widget::Widget(QWidget *parent)
     connect(handler, SIGNAL(connected()), this, SLOT(on_connect()));
     connect(handler, SIGNAL(connectionError(QString&)), this, SLOT(on_connectionError(QString&)));
 
+    ui->deviceComboBox->addItems(handler->availablePorts());
     handler->connectTo(ui->deviceComboBox->currentText());
 }
 

@@ -1,6 +1,7 @@
 #include "handler.h"
 #include <QApplication>
 #include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
 #include <QThread>
 
 #include <QDebug>
@@ -55,10 +56,22 @@ void SerialHandler::connectTo(const QString& portName) {
     connect(m_receiver, SIGNAL(finished()), thread, SLOT(quit()));
     connect(m_receiver, SIGNAL(finished()), m_receiver, SLOT(deleteLater()));
     connect(m_serial, SIGNAL(readyRead()), m_receiver, SLOT(process()));
+    connect(m_serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
 
     thread->start();
 }
 
+
+QList<QString> SerialHandler::availablePorts() {
+    QList<QString> portNames;
+    QList<QSerialPortInfo> portInfos = QSerialPortInfo::availablePorts();
+    for (const QSerialPortInfo &info : portInfos) {
+        qDebug() << info.systemLocation();
+        portNames.append(info.systemLocation());
+    }
+
+    return portNames;
+}
 
 void SerialHandler::disconnect() {
     if (!m_serial->isOpen()) {
@@ -74,6 +87,32 @@ bool SerialHandler::isConnected() {
     return m_serial->isOpen();
 }
 
+bool SerialHandler::checkSerial()
+{
+    QSerialPortInfo *portInfo = new QSerialPortInfo(m_serial->portName());
+    // ui->serialDevice being a combobox of available serial ports
+
+    if (portInfo->isValid())
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void SerialHandler::handleError(QSerialPort::SerialPortError error)
+{
+    if (error == QSerialPort::ResourceError) {
+        qDebug() << "Connection error " << m_serial->portName() << ": " << m_serial->errorString();
+
+        emit connectionError(QString::fromLatin1("Connection error ")
+                                     .append(m_serial->portName()).append(": ").append(m_serial->errorString()));
+
+        disconnect();
+    }
+}
 
 void SerialHandler::sendCommand(const CMD &cmd, const int16_t value) {
     if (m_serial->isOpen()) {

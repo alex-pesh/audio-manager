@@ -39,18 +39,8 @@
     </rect>
    </property>
    <property name="currentText">
-    <string notr="true">/dev/ttyUSB0</string>
+    <string notr="true"/>
    </property>
-   <item>
-    <property name="text">
-     <string>/dev/ttyUSB0</string>
-    </property>
-   </item>
-   <item>
-    <property name="text">
-     <string>/tmp/simavr-uart0</string>
-    </property>
-   </item>
   </widget>
   <widget class="QGroupBox" name="controlGroupBox">
    <property name="enabled">

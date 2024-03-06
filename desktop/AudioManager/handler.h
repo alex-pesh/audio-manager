@@ -52,10 +52,13 @@ private:
     QSerialPort *m_serial;
     Receiver *m_receiver;
 
+    bool checkSerial();
+
 public:
     explicit SerialHandler(QObject *parent = nullptr);
     ~SerialHandler() override;
 
+    QList<QString> availablePorts();
     void connectTo(const QString &portName);
     void disconnect();
     bool isConnected();
@@ -66,6 +69,9 @@ signals:
     void connected();
     void disconnected();
     void connectionError(QString &error);
+
+public slots:
+    void handleError(QSerialPort::SerialPortError error);
 
 };
 
