@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/ArduinoToolchain.cmake)
-set(CMAKE_CXX_STANDARD 98)
+set(CMAKE_CXX_STANDARD 17)
 set(PROJECT_NAME sven_control)
 
 set(${PROJECT_NAME}_BOARD nano)
 set(ARDUINO_CPU atmega328)
 project(${PROJECT_NAME} C CXX ASM)
+
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -19,12 +20,12 @@ set(sven_control_SRCS
         src/i2cmaster.S
         src/buffers.cpp
         src/PT2313.cpp
-        /usr/share/arduino/libraries/Wire/utility/twi.c
+#        /usr/share/arduino/libraries/Wire/utility/twi.c
 )
 set(sven_control_HDRS
         src/i2cmaster.h
         src/PT2313.h
-        /usr/share/arduino/libraries/Wire/utility/twi.h
+#        /usr/share/arduino/libraries/Wire/utility/twi.h
 )
 set(sven_control_BOARD nano)
 
@@ -51,11 +52,15 @@ set(sven_control_BOARD nano)
 
 #### Additional settings for programmer. From programmers.txt
 set(${PROJECT_NAME}_PROGRAMMER avrispmkii)
-#set(${PROJECT_NAME}_PORT /dev/ttyUSB0)
-set(${PROJECT_NAME}_PORT /tmp/simavr-uart0)
+
+set(${PROJECT_NAME}_PORT /dev/ttyUSB0)
+#set(${PROJECT_NAME}_PORT /tmp/simavr-uart0)
+
 set(nano.upload.speed 19200)
+
 # https://gcc.gnu.org/onlinedocs/gcc/AVR-Options.html
 set(nano.menu.cpu.atmega328.build.mcu atmega328p)
+
 set(CMAKE_EXE_LINKER_FLAGS -mmcu=${nano.menu.cpu.atmega328.build.mcu})
 
 ## Verbose build process
