@@ -10,7 +10,7 @@
 #include "i2cmaster.h"
 #include "PT2313.h"
 #include "buffers.cpp"
-
+#include "exchange.h"
 
 #if DEBUG_MODE
   #include "avr8-stub.h"
@@ -36,16 +36,6 @@ volatile boolean serialReady = false;
 PT2313 audioChip;
 volatile bool saved = false;
 
-enum CMD {
-    SET_VOLUME = 1,
-    SET_TREBLE,
-    SET_BASS,
-    SET_BALANCE,
-    SET_MUTE,
-    SET_LOUDNESS,
-    SYNC = 100,
-    CUSTOM = 200
-};
 
 struct Values {
     int8_t volume = 33;
@@ -120,18 +110,21 @@ printDecimal(value) \
 
 void printVal(const char label[], int16_t value) {
 #if SERIAL_MODE
+/*
 
     Serial.print(label);
     Serial.print(" ");
     printDecimal(value);
     Serial.println();
     Serial.flush();
+*/
 
 #endif  // SERIAL_MODE
 }
 
 void printValues(const char label[]) {
 #if SERIAL_MODE
+/*
 
     Serial.print(label);
     Serial.print(" ");
@@ -142,6 +135,7 @@ void printValues(const char label[]) {
     printDecimal(values.mute_loud)
     Serial.println();
     Serial.flush();
+*/
 
 #endif  // SERIAL_MODE
 }
@@ -163,7 +157,7 @@ void sendValues() {
 
 void printVal(const char label[], const char *value, uint16_t offset, uint16_t size) {
 #if SERIAL_MODE
-
+/*
     Serial.print(label);
     Serial.print(" ");
     for (uint16_t i = offset; i < offset + size; i++) {
@@ -171,6 +165,7 @@ void printVal(const char label[], const char *value, uint16_t offset, uint16_t s
     }
     Serial.println();
     Serial.flush();
+*/
 
 #endif  // SERIAL_MODE
 }
@@ -184,13 +179,14 @@ void printBytes(unsigned n) {
     bytes[1] = (n >> 16) & 0xFF;
     bytes[2] = (n >> 8) & 0xFF;
     bytes[3] = n & 0xFF;
+/*
 
     Serial.print(bytes[0]);
     Serial.print(bytes[1]);
     Serial.print(bytes[2]);
     Serial.print(bytes[3]);
-
-#endif  // SERIAL_MODE    
+*/
+#endif  // SERIAL_MODE
 }
 
 
@@ -238,7 +234,7 @@ void setup() {
 
 
 void processSerial() {
-#if SERIAL_MODE
+//#if SERIAL_MODE
 
     while (serialReady) {
 
@@ -294,7 +290,9 @@ void processSerial() {
                 case CUSTOM:
                     if (val == 0) {
                         restoreValues();
-                        printValues("Read from eeprom: ");
+//                        printValues("Read from eeprom: ");
+                        DataPacket packet = DataPacket::asMessage("Read from eeprom");
+                        Serial.print(packet);
                     } else {
                         saveValues();
                         printValues("Written to eeprom: ");
@@ -310,7 +308,7 @@ void processSerial() {
         serialReady = false;
     }
 
-#endif  // SERIAL_MODE
+//#endif  // SERIAL_MODE
 }
 
 
@@ -346,19 +344,19 @@ void loop() {
 
     if (!saved) {
         int analogIn = analogRead(A7);
-        if (analogIn > 200 && analogIn < 800) {
+        if (analogIn > 200 && analogIn < 750) {
 
-            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
-            delay(200);                      // wait for a second
-            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+            digitalWrite(13, HIGH);
             delay(200);
-            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
-            delay(200);                      // wait for a second
-            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+            digitalWrite(13, LOW);
             delay(200);
-            digitalWrite(13, HIGH);  // turn the LED on (HIGH is the voltage level)
-            delay(200);                      // wait for a second
-            digitalWrite(13, LOW);   // turn the LED off by making the voltage LOW
+            digitalWrite(13, HIGH);
+            delay(200);
+            digitalWrite(13, LOW);
+            delay(200);
+            digitalWrite(13, HIGH);
+            delay(200);
+            digitalWrite(13, LOW);
             delay(200);
 
             printVal("Voltage: ", analogIn);
@@ -370,7 +368,7 @@ void loop() {
             printVal("Voltage: ", analogIn);
 */
         } else {
-            digitalWrite(13, LOW);  // turn the LED on (HIGH is the voltage level)
+            digitalWrite(13, LOW);
         }
     }
 

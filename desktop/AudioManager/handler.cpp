@@ -132,6 +132,7 @@ void SerialHandler::sendCommand(const CMD &cmd, const int16_t value) {
 }
 
 void SerialHandler::sendCommand(const QString &input) {
+
     QStringList values = input.split(QRegExp("\\s+"));
     int32_t inputCmd = values.at(0).toInt();
     int16_t value = (int16_t) values.at(1).toInt();
@@ -165,12 +166,21 @@ void Receiver::process() {
             QThread::msleep(200);
         } while (!m_quit && m_serial->bytesAvailable() > 0);
 
-        QString respString = QString(respBuff).trimmed();
+        DataHead head {};
+        memcpy(&head, respBuff.data(), sizeof (head));
 
-        qDebug() << "Size: " << respBuff.size();
-        qDebug().noquote() << respString;
+        if (head.type == MESSAGE) {
+            DataPacket packet{.head = head, .payload = new char[head.length]};
+            memcpy(packet.payload, (respBuff.data() + sizeof(head)), head.length);
 
-        qDebug() << "-------------------------------" << endl;
+            QString respString = QString(packet.payload).trimmed();
+            free(packet.payload);
+
+            qDebug() << "Size: " << respBuff.size();
+            qDebug().noquote() << respString;
+        }
+        qDebug() << "-------------------------------" << Qt::endl;
+
     }
 
 }

@@ -1,22 +1,12 @@
 #ifndef HANDLER_H
 #define HANDLER_H
 
+#include "exchange.h"
+
 #include <QMutex>
 #include <QThread>
 #include <QtSerialPort/QSerialPort>
 #include <type_traits>
-
-
-enum CMD {
-    SET_VOLUME = 1,
-    SET_TREBLE,
-    SET_BASS,
-    SET_BALANCE,
-    SET_MUTE,
-    SET_LOUDNESS,
-    SYNC = 100,
-    CUSTOM = 200
-};
 
 
 class Receiver: public QObject
