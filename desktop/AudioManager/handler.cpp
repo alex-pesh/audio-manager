@@ -156,32 +156,38 @@ Receiver::~Receiver() {
 
 void Receiver::process() {
 
-    if (!m_quit && m_serial->bytesAvailable() > 0) {
 
-        qDebug() << "---------- Response ----------";
+    if (!m_quit && m_serial->bytesAvailable() < sizeof (DataHead)) {
+        return;
+    }
 
+    qDebug() << "---------- Response ----------";
+/*
         QByteArray respBuff;
         do {
             respBuff += m_serial->readAll();
-            QThread::msleep(200);
         } while (!m_quit && m_serial->bytesAvailable() > 0);
 
         DataHead head {};
         memcpy(&head, respBuff.data(), sizeof (head));
+*/
 
-        if (head.type == MESSAGE) {
-            DataPacket packet{.head = head, .payload = new char[head.length]};
-            memcpy(packet.payload, (respBuff.data() + sizeof(head)), head.length);
+    DataHead head{};
+    m_serial->read((char *) &head, sizeof(head));
 
-            QString respString = QString(packet.payload).trimmed();
-            free(packet.payload);
+    if (head.type == MESSAGE && head.length > 0) {
+        QByteArray respBuff = m_serial->read(head.length);
 
-            qDebug() << "Size: " << respBuff.size();
-            qDebug().noquote() << respString;
-        }
-        qDebug() << "-------------------------------" << Qt::endl;
+        DataPacket packet{.head = head, .payload = new char[head.length]};
+        memcpy(packet.payload, respBuff.data(), head.length);
 
+        QString respString = QString(packet.payload).trimmed();
+        free(packet.payload);
+
+        qDebug() << "Size: " << respBuff.size();
+        qDebug().noquote() << respString;
     }
+    qDebug() << "-------------------------------" << Qt::endl;
 
 }
 
