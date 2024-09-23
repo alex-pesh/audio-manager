@@ -1,27 +1,26 @@
 #include "PT2313.h"
 #include "i2cmaster.h"
+// #include <Wire.h>
 
 
-unsigned char _addr = PT2313_ADDR;
+
+unsigned char _addr = 0x88;
 int8_t balanceVal = 0;
 
 
 void PT2313::initialize(unsigned char addr, byte src, bool muted) {
 	_addr = addr;
-
 	i2c_init();
 
-	if (muted) {
-		volume(63);
-	} else {
-	// 		volume(PT2313_DEFVOL);
-	}
+/* 
+	Wire.begin(9600);
+#if ARDUINO >= 157
+	Wire.setClock(100000UL); // Set I2C frequency to 100kHz
+#else
+	TWBR = ((F_CPU / 100000UL) - 16) / 2; // Set I2C frequency to 100kHz
+#endif
+ */
 
-// 	audioSwitch_reg = 0x5C;
-// 	source(src);
-// 	balance(0);
-// 	bass(0);
-// 	treble(0);
 }
 
 
@@ -48,7 +47,7 @@ int8_t PT2313::source(int8_t val) {
 
 
 int8_t PT2313::volume(int8_t val) {
-	val = boundary(val,0,0x3F);
+	val = boundary(val, 0, 0x3F);
 	writeByte(PT2313_VOL_REG|(0x3F - val));
 
 	return val;
@@ -58,14 +57,14 @@ int8_t PT2313::bass(int8_t val){
     int8_t temp = eqSet(val);
 	writeByte(PT2313_BASS_REG|temp);
 
-	return temp;
+	return boundary(val, -7, 7);
 }
 
 int8_t PT2313::treble(int8_t val){
     int8_t temp = eqSet(val);
 	writeByte(PT2313_TREBLE_REG|temp);
 
-	return temp;
+	return boundary(val, -7, 7);
 }
 
 int8_t PT2313::balance(int8_t val) {
@@ -144,7 +143,7 @@ bool PT2313::loudness(bool val) {
 
 int8_t PT2313::eqSet(int8_t val) {
     int8_t temp;
-	val = (int8_t) boundary(val, -7, 7);
+	val = boundary(val, -7, 7);
 	if (val < 0) {
 		temp = 7 - abs(val);
 	} else {
@@ -160,6 +159,12 @@ int8_t PT2313::boundary(int8_t val, int8_t min, int8_t max){
 }
 
 void PT2313::writeByte(unsigned char val) {
+/* 
+	Wire.beginTransmission(0x68);
+	Wire.write(val);
+	Wire.endTransmission();
+ */
+
     unsigned char ret = i2c_start(_addr);
 
     if (!ret) {
@@ -170,4 +175,6 @@ void PT2313::writeByte(unsigned char val) {
 	}
 
     i2c_stop();
+
+
 }

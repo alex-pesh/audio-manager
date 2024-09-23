@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+set(ARDUINO_SDK_PATH "/home/alexander/workspace/tools/arduino-1.8.13/")
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/cmake/ArduinoToolchain.cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(PROJECT_NAME sven_control)
@@ -21,11 +22,13 @@ set(sven_control_SRCS
         src/buffers.cpp
         src/PT2313.cpp
 #        /usr/share/arduino/libraries/Wire/utility/twi.c
+        lib/encoder/EncButton.h
 )
 set(sven_control_HDRS
         src/i2cmaster.h
         src/PT2313.h
 #        /usr/share/arduino/libraries/Wire/utility/twi.h
+        lib/encoder/EncButton.h
 )
 set(sven_control_BOARD nano)
 
