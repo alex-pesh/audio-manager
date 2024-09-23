@@ -156,21 +156,29 @@ Receiver::~Receiver() {
 
 void Receiver::process() {
 
+    if (!m_quit && m_serial->bytesAvailable() > 0) {
+
+        qDebug() << "---------- Response ----------";
+
+        QByteArray respBuff;
+        do {
+            respBuff += m_serial->readAll();
+            QThread::msleep(200);
+        } while (!m_quit && m_serial->bytesAvailable() > 0);
+
+        QString respString = QString(respBuff).trimmed();
+
+        qDebug() << "Size: " << respBuff.size();
+        qDebug().noquote() << respString;
+
+        qDebug() << "-------------------------------" << endl;
+    }
+
+/*
 
     if (!m_quit && m_serial->bytesAvailable() < sizeof (DataHead)) {
         return;
     }
-
-    qDebug() << "---------- Response ----------";
-/*
-        QByteArray respBuff;
-        do {
-            respBuff += m_serial->readAll();
-        } while (!m_quit && m_serial->bytesAvailable() > 0);
-
-        DataHead head {};
-        memcpy(&head, respBuff.data(), sizeof (head));
-*/
 
     DataHead head{};
     m_serial->read((char *) &head, sizeof(head));
@@ -187,7 +195,8 @@ void Receiver::process() {
         qDebug() << "Size: " << respBuff.size();
         qDebug().noquote() << respString;
     }
-    qDebug() << "-------------------------------" << Qt::endl;
+    qDebug() << "-------------------------------" << endl;
+*/
 
 }
 

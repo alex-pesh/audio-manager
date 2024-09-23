@@ -44,7 +44,7 @@ struct DataPacket : Printable {
         size_t count = 0;
         count += head.printTo(p);
         if (head.length > 0 && payload) {
-            count += p.write(payload, head.length);
+            count += p.write((uint8_t *) payload, head.length);
         }
 
         return count;
