@@ -4,16 +4,15 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <EEPROM.h>
-
 #include <avr/io.h>
 
 #include "i2cmaster.h"
 #include "PT2313.h"
-#include "buffers.cpp"
-#include "exchange.h"
-
 #include "EncButton.h"
 #include "TimerOne.h"
+// #include <IRremote.h>
+
+#include "exchange.h"
 
 
 #if DEBUG_MODE
@@ -31,7 +30,8 @@
 
 #define PIN_INTERRUPT 2
 
-const int ledPin = 12;
+#define PIN_IR_RECEIVE 12
+
 
 unsigned char startResult;
 char i2cBuff[I2C_BUFF_SIZE];
@@ -42,7 +42,9 @@ volatile boolean serialReady = false;
 
 
 PT2313 audioChip;
-volatile bool saved = false;
+volatile bool 
+    saved = false,
+    changed = false;
 
 
 struct Encoders {
@@ -110,6 +112,7 @@ printDecimal(value) \
 void printValues(const char label[]) {
 #if SERIAL_MODE
 
+    Serial.write(CMD::CUSTOM);
     Serial.print(label);
     Serial.print(" ");
     printDecimal(values.volume)
@@ -128,6 +131,8 @@ void printValues(const char label[]) {
 void printBuff() {
 #if SERIAL_MODE
 
+  Serial.write(CMD::CUSTOM);
+
   for (uint8_t i = 0; i < rxLength; i++) {
     Serial.print(i2cBuff[i], HEX);
     Serial.print("  ");
@@ -143,6 +148,7 @@ void printBuff() {
 void printVal(const char label[], int16_t value) {
 #if SERIAL_MODE
 
+    Serial.write(CMD::CUSTOM);
     Serial.print(label);
     Serial.print(" ");
     printDecimal(value);
@@ -171,6 +177,7 @@ void sendValues() {
 void printVal(const char label[], const char *value, uint16_t offset, uint16_t size) {
 #if SERIAL_MODE
 
+    Serial.write(CMD::CUSTOM);
     Serial.print(label);
     Serial.print(" ");
     for (uint16_t i = offset; i < offset + size; i++) {
@@ -213,11 +220,10 @@ void restoreValues() {
     values.balance = (int8_t) EEPROM.read(3);
     values.mute_loud = (int8_t) EEPROM.read(4);
 
-
     audioChip.source(0);
     delay(CMD_DELAY);
 
-    // // values.volume = 
+    values.volume = 
     audioChip.volume(values.volume);
     delay(CMD_DELAY);
   
@@ -225,23 +231,20 @@ void restoreValues() {
     audioChip.treble(values.treble);
     delay(CMD_DELAY);
 
-    // values.bass = 
+    values.bass = 
     audioChip.bass(values.bass);
     delay(CMD_DELAY);
 
-    // values.balance = 
+    values.balance = 
     audioChip.balance(values.balance);
     delay(CMD_DELAY);
 
     audioChip.mute(values.muted());
     delay(CMD_DELAY);
-    
-    // audioChip.loudness(values.loudnessOn());
-    // delay(CMD_DELAY);
 
-//  audioChip.gain(gain); //gain 0...11.27 db
+    // audioChip.loudness(values.loudnessOn());
+    // audioChip.gain(gain); //gain 0...11.27 db
    
-    Serial.println("-- Setting encoders...");
 
     encoders.volume.counter = values.volume;
     encoders.treble.counter = values.treble;
@@ -257,25 +260,13 @@ void wireReceiveHandler(int numBytes) {
 }
 
 
+
+/* 
 int ledState = LOW;
 unsigned long previousMillis = 0;
 long interval = 200;
 
-void blink() {
-    digitalWrite(ledPin, HIGH);
-    delay(200);
-    digitalWrite(ledPin, LOW);
-    delay(200);
-    digitalWrite(ledPin, HIGH);
-    delay(200);
-    digitalWrite(ledPin, LOW);
-    delay(200);
-    digitalWrite(ledPin, HIGH);
-    delay(200);
-    digitalWrite(ledPin, LOW);
-    delay(200);
-
-/*
+void blink(int count) {
     unsigned int cnt = 3;
     while (cnt-- > 0) {
         unsigned long currentMillis = millis();
@@ -289,22 +280,26 @@ void blink() {
                 ledState = LOW;
             }
 
-            digitalWrite(ledPin, ledState);
+            digitalWrite(LED_BUILTIN, ledState);
         }
     }
+}
 */
+
+
+void blink(int count) {
+    while (count > 0) {
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(200);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(200);
+        count--;
+    }
 }
 
 void powerInterrupt() {
-    blink();
+    blink(10);
 }
-
-
-// Encoder enc(6, 7, INPUT_PULLUP);
-// void encIS() {
-//     enc.tickISR();
-// }
-
 
 
 void setup() {
@@ -314,12 +309,9 @@ void setup() {
 #endif  // DEBUG_MODE
 
 #if SERIAL_MODE
-    Serial.begin(9600);
-    Serial.setTimeout(1000);
+    Serial.begin(9600, SERIAL_8N2);
+    // Serial.setTimeout(0);
 #endif  // SERIAL_MODE
-
-    pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(ledPin, OUTPUT);
 
 /*
     pinMode(PIN_INTERRUPT, INPUT_PULLUP);
@@ -332,7 +324,14 @@ void setup() {
     Wire.onReceive(wireReceiveHandler);
  */
 
-    Serial.println("Init encoders...");
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+
+
+    // Serial.println("Init IrReceiver...");
+    // IrReceiver.begin(PIN_IR_RECEIVE, false);
+
+    // Serial.println("Init encoders...");
     encoders = {
         .volume = Encoder(6, 7, INPUT_PULLUP),
         .treble = Encoder(8, 9, INPUT_PULLUP),
@@ -340,28 +339,25 @@ void setup() {
     };
     encoders.enableISR(false);
 
-    Serial.println("Init timer...");
+
+    // Serial.println("Init timer...");
     Timer1.initialize(1000);    // установка таймера на каждые 1000 микросекунд (= 1 мс)
     Timer1.attachInterrupt(encodersTimerISR);
 
-
-    Serial.println("Waitig for remote device init...");
-
+    // Serial.println("Waitig for remote device to init...");
     delay(1000); // wait for PT2313 I2C remote device to be initialized
+
 
     // Serial.println("Init i2c...");
     // i2c_init();
 
-
-    Serial.println("Init audio...");
+    // Serial.println("Init audio...");
     audioChip.initialize(ADDR_TARGET, 0, false);
     
-    Serial.println("Init values...");
+    // Serial.println("Restoring values...");
     restoreValues();
 
     printValues("Initialized with values: ");
-
-    digitalWrite(ledPin, LOW);
 
 }
 
@@ -411,49 +407,58 @@ void processSerialBuff() {
 
             switch (cmd) {
                 case SET_VOLUME:
-                    values.volume = audioChip.volume(val);
+                    values.volume = encoders.volume.counter =
+                    audioChip.volume(val);
+                    changed = true;
                     printVal("Volume set: ", values.volume);
                     break;
 
                 case SET_TREBLE:
-                    values.treble = audioChip.treble(val);
+                    values.treble = encoders.treble.counter =
+                    audioChip.treble(val);
+                    changed = true;
                     printVal("Treble set: ", values.treble);
                     break;
 
                 case SET_BASS:
-                    values.bass = audioChip.bass(val);
+                    values.bass = encoders.bass.counter =
+                    audioChip.bass(val);
+                    changed = true;
                     printVal("Bass set: ", values.bass);
                     break;
 
                 case SET_BALANCE:
                     values.balance = audioChip.balance(val);
+                    changed = true;
                     printVal("Balance set: ", values.balance);
                     break;
 
                 case SET_MUTE:
                     values.muted(audioChip.mute(val == 1));
+                    changed = true;
                     printVal("Muted: ", values.muted());
                     break;
 
                 case SET_LOUDNESS:
                     values.loudnessOn(audioChip.loudness(val == 1));
+                    changed = true;
                     printVal("Loudness set: ", values.loudnessOn());
-                break;
+                    break;
 
                 case SYNC:
-//                    sendValues();
-                    printValues("Current values: ");
-
+                    sendValues();
                     break;
 
                 case CUSTOM:
                     if (val == 0) {
                         restoreValues();
                         printValues("Read from eeprom: ");
+                        changed = false;
 //                        DataPacket packet = DataPacket::asMessage("Read from eeprom");
 //                        Serial.print(packet);
                     } else {
                         saveValues();
+                        changed = false;
                         printValues("Written to eeprom: ");
                     }
 
@@ -477,6 +482,7 @@ void processEncoders() {
     if (encoders.volume.tick()) {
         values.volume = encoders.volume.counter =
         audioChip.volume(encoders.volume.counter);
+        changed = true;
 
         printVal("Volume set: ", values.volume);
     }
@@ -484,6 +490,7 @@ void processEncoders() {
     if (encoders.treble.tick()) {
         values.treble = encoders.treble.counter =
         audioChip.treble(encoders.treble.counter);
+        changed = true;
 
         printVal("Treble set: ", values.treble);
     }
@@ -491,56 +498,64 @@ void processEncoders() {
     if (encoders.bass.tick()) {
         values.bass = encoders.bass.counter =
         audioChip.bass(encoders.bass.counter);
+        changed = true;
 
         printVal("Bass set: ", values.bass);
     }
 }
 
 
+void processIR() {
+/* 
+if (IrReceiver.decode()) {
+        Serial.println(IrReceiver.decodedIRData.decodedRawData, HEX); // Print "old" raw data
+        IrReceiver.printIRResultShort(&Serial);                       // Print complete received data in one line
+        IrReceiver.printIRSendUsage(&Serial);                         // Print the statement required to send this data
+
+        IrReceiver.resume(); // Enable receiving of the next value
+    }
+ */
+}
+
 
 void loop() {
 
     processEncoders();
-    delay(10);
+    delay(1);
 
     processSerialBuff();
-    delay(10);
+    delay(1);
 
+    processIR();
+    delay(1);
 
     // processI2CBuff();
     // delay(10);
 
-    if (!saved) {
+
+    if (changed && !saved) {
         int analogIn = analogRead(A7);
-        if (analogIn > 512) { // 2.5V
+        if (analogIn > 512) {       // ~2.5V
             saveValues();
             saved = true;
-/* 
-            if (ledState == LOW) {
-                ledState = HIGH;
-            } else {
-                ledState = LOW;
-            }
-            digitalWrite(ledPin, ledState);
-            
-            delay (200);
-             */
+            changed = false;
 
-            printValues("Saved to eeprom: ");
             printVal("Voltage: ", analogIn);
+            printValues("Saved to eeprom: ");
         }
     }
-
 }
 
 
 void serialEvent() {
-#if SERIAL_MODE
 
+#if SERIAL_MODE
   serialReady = true;
 
+/* 
     int available = Serial.available();
     printVal("Serial event. Available: ", available);
+ */    
 /*
 
 
