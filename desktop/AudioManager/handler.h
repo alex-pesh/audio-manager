@@ -23,13 +23,14 @@ public:
 
 
 public slots:
+    void init();
     void process();
     void stop();
 
 //Q_SIGNALS
 signals:
     void finished();
-    void error(QString error);
+    void error(const QString& error);
 };
 
 
