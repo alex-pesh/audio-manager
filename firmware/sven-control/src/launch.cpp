@@ -234,7 +234,7 @@ void restoreValues(Values &values) {
 }
 
 
-#define CMD_DELAY 150
+#define CMD_DELAY 50
 
 void restoreValues() {
 
@@ -339,27 +339,14 @@ void setup() {
 
 #if SERIAL_MODE
     Serial.begin(9600, SERIAL_8N2);
-    // Serial.setTimeout(0);
 #endif  // SERIAL_MODE
 
     pinMode(PIN_INTERRUPT, INPUT);
     attachInterrupt(digitalPinToInterrupt(PIN_INTERRUPT), powerInterrupt, HIGH);
 
 
-/* 
-    Serial.println("Init wire...");
-    Wire.begin(ADDR_SLAVE);
-    Wire.onReceive(wireReceiveHandler);
- */
-
-    // pinMode(LED_BUILTIN, OUTPUT);
-    // digitalWrite(LED_BUILTIN, LOW);
-
-
-    // Serial.println("Init IrReceiver...");
     // IrReceiver.begin(PIN_IR_RECEIVE, false);
 
-    // Serial.println("Init encoders...");
     encoders = {
         .volume = Encoder(6, 7, INPUT_PULLUP),
         .treble = Encoder(8, 9, INPUT_PULLUP),
@@ -367,31 +354,20 @@ void setup() {
     };
     encoders.enableISR(false);
 
-
-    // Serial.println("Init timer...");
     Timer1.initialize(1000);    // установка таймера на каждые 1000 микросекунд (= 1 мс)
     Timer1.attachInterrupt(encodersTimerISR);
 
-    // Serial.println("Waitig for remote device to init...");
-    delay(1000); // wait for PT2313 I2C remote device to be initialized
+    delay(500); // wait for PT2313 I2C remote device to be initialized
 
-
-    // Serial.println("Init i2c...");
-    // i2c_init();
-
-    // Serial.println("Init audio...");
     audioChip.initialize(ADDR_TARGET, 0, false);
     
-
-    // Serial.println("Restoring values...");
     restoreValues();
 
-    deviceState = HIGH;
+    deviceState = HIGH; 
 
     sendValues(values);
-    printValues("Initialized with values: ", values);
-
 }
+
 
 /* 
 void processI2CBuff() {
