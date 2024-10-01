@@ -5,6 +5,7 @@
 #include <QWidget>
 #include <QErrorMessage>
 #include <QMessageBox>
+#include <QSlider>
 #include <QtSerialPort/QSerialPort>
 
 QT_BEGIN_NAMESPACE
@@ -19,13 +20,15 @@ public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
 
+public slots:
+    void on_connect();
+    void on_disconnect();
+    void on_connectionError(QString &error);
+    void on_syncEvent(Values &values);
+    void on_valueEvent(CMD cmd, int8_t &value);
+
 private slots:
     void on_sendBtn_pressed();
-
-private slots:
-    void on_connect();
-
-    void on_connectionError(QString &error);
 
     void on_deviceComboBox_currentTextChanged(const QString &deviceName);
 
@@ -45,10 +48,10 @@ private slots:
 
 private:
     Ui::Widget *ui;
-    QSerialPort *serial;
     SerialHandler *handler;
 
     void showEvent(QShowEvent *event) override;
+    static void setSliderValue(QObject *slider, const int &value);
 };
 
 

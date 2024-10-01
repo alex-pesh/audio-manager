@@ -8,7 +8,7 @@
 #include <linux/serial.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 
 SerialHandler::SerialHandler(QObject *parent) : QObject(parent) {
 
@@ -25,6 +25,26 @@ SerialHandler::~SerialHandler() {
 }
 
 
+void serialInfo(const char *_portName) {
+
+    int fd = open(_portName, O_RDWR | O_NOCTTY | O_NDELAY);
+    if (fd < 0) {
+        qDebug() << errno;
+    }
+
+    int bytes = 0;
+    int res = ioctl(fd, FIONREAD, &bytes);
+    qDebug() << "Buffer size: " << bytes;
+
+/*
+    serial_struct serinfo;
+    memset(&serinfo, 0, sizeof(serinfo));
+    int res = ioctl(fd, TIOCGSERIAL, &serinfo);
+    qDebug() << "Buffer size: " << serinfo.xmit_fifo_size;
+*/
+
+}
+
 void SerialHandler::connectTo(const QString& portName) {
 
     if (m_serial && m_serial->isOpen()) {
@@ -37,38 +57,20 @@ void SerialHandler::connectTo(const QString& portName) {
     m_serial->setParity(QSerialPort::NoParity);
     m_serial->setStopBits(QSerialPort::TwoStop);
     m_serial->setFlowControl(QSerialPort::NoFlowControl);
-    m_serial->clear(QSerialPort::AllDirections);
 
     if (!m_serial->open(QIODevice::ReadWrite)) {
         qDebug() << "Failed to open serial " << portName << ": " << m_serial->errorString();
 
         emit connectionError(QString::fromLatin1("Failed to open serial port ")
                                 .append(portName).append(": ").append(m_serial->errorString()));
+        return;
     } else {
+        qDebug() << "Connected to " << portName;
+
+        m_serial->clear(QSerialPort::AllDirections);
+        sendCommand(CMD::SYNC);
         emit connected();
     }
-
-/*
-
-    const char *_portName = qPrintable(portName);
-    int fd = open(_portName, O_RDWR | O_NOCTTY | O_NDELAY);
-//    fcntl(fd, F_SETFL, O_NONBLOCK);
-    if (fd < 0) {
-        qDebug() << errno;
-    }
-
-    int bytes = 0;
-    int res = ioctl(fd, FIONREAD, &bytes);
-    qDebug() << "Buffer size: " << bytes;*/
-
-
-/*
-    serial_struct serinfo;
-    memset(&serinfo, 0, sizeof(serinfo));
-    int res = ioctl(fd, TIOCGSERIAL, &serinfo);
-    qDebug() << "Buffer size: " << serinfo.xmit_fifo_size;
-*/
-
 
 //    QThread *thread = new QThread();
 //    thread->setObjectName("Receiver_Thread");
@@ -78,10 +80,13 @@ void SerialHandler::connectTo(const QString& portName) {
 //    connect(thread, SIGNAL(started()), m_receiver, SLOT(init()));
 //    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 //    connect(m_receiver, SIGNAL(finished()), thread, SLOT(quit()));
+
     connect(m_receiver, SIGNAL(finished()), m_receiver, SLOT(deleteLater()));
-    connect(m_serial, SIGNAL(readyRead()), m_receiver, SLOT(process()));
+    connect(m_serial, SIGNAL(readyRead()), this, SLOT(processEvent()));
     connect(m_serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
+
 //    thread->start();
+
 }
 
 
@@ -89,7 +94,7 @@ QList<QString> SerialHandler::availablePorts() {
     QList<QString> portNames;
     QList<QSerialPortInfo> portInfos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : portInfos) {
-        qDebug() << info.systemLocation();
+//        qDebug() << info.systemLocation();
         portNames.append(info.systemLocation());
     }
 
@@ -169,6 +174,72 @@ void SerialHandler::sendCommand(const QString &input) {
 }
 
 
+void SerialHandler::processEvent() {
+
+    if (m_serial->bytesAvailable() > 0) {
+
+        qDebug("---------- Response [%lld bytes] ----------", m_serial->bytesAvailable());
+
+        QByteArray respBuff;
+        CMD cmd;
+        m_serial->read(reinterpret_cast<char *>(&cmd), sizeof(CMD)); // read command CMD
+
+        std::string label;
+
+        switch (cmd) {
+            case SET_VOLUME:
+            case SET_BASS:
+            case SET_TREBLE: {
+                int8_t value;
+                m_serial->read(reinterpret_cast<char *>(&value), sizeof(int8_t)); // read command value
+                emit SerialHandler::valueEvent(cmd, value);
+                break;
+            }
+
+            case CUSTOM: {
+                int8_t value;
+                m_serial->peek(reinterpret_cast<char *>(&value), sizeof(int8_t)); // read command value
+                qDebug("DATA: %d", value);
+                break;
+            }
+
+            case DISCONNECT: {
+                int8_t value;
+                m_serial->read(reinterpret_cast<char *>(&value), sizeof(int8_t)); // read command value
+                qDebug("Disconnect signal received: %d", value);
+                disconnect();
+                return;
+            }
+
+            case SYNC: {
+                Values values;
+                m_serial->read(reinterpret_cast<char *>(&values), sizeof(Values));
+                emit SerialHandler::synced(values);
+                qDebug("Sync values [Volume: %d; Treble: %d; Bass: %d; Balance: %d]",
+                       values.volume, values.treble, values.bass, values.balance);
+                break;
+            }
+
+            default:
+                respBuff += cmd;
+        }
+
+
+        do {
+            respBuff += m_serial->readAll();
+        } while (m_serial->bytesAvailable() > 0);
+
+        if (respBuff.size() > 0) {
+            QString respString = QString(respBuff).trimmed();
+            qDebug().noquote() << "<<" << respString;
+        }
+//        qDebug("Bytes received: %d", respBuff.size());
+        qDebug("------------------------------");
+    }
+}
+
+
+
 Receiver::Receiver(QSerialPort &serial) {
     this->m_serial = &serial;
     qDebug() << "Receiver is created";
@@ -185,30 +256,6 @@ void Receiver::init() {
 
 
 void Receiver::process() {
-
-    qint64 available = 0;
-    if (!m_quit && (available = m_serial->bytesAvailable()) > 0) {
-
-        qDebug("---------- Response ----------");
-/*
-        QByteArray respBuff = m_serial->read(8); // read command CMD
-        CMD cmd = (CMD) *respBuff.data();
-        respBuff.clear();
-*/
-
-        QThread::msleep(100);
-        QByteArray respBuff;
-        do {
-            respBuff += m_serial->readAll();
-        } while (!m_quit && m_serial->bytesAvailable() > 0);
-
-        QString respString = QString(respBuff).trimmed();
-        qDebug().noquote() << "<<" << respString;
-
-        qDebug("Bytes received: %d", respBuff.size());
-        qDebug("------------------------------");
-    }
-
 /*
 
     if (!m_quit && m_serial->bytesAvailable() < sizeof (DataHead)) {

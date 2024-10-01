@@ -16,7 +16,6 @@
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
-    , serial(new QSerialPort(this))
     , handler(new SerialHandler())
 
 {
@@ -29,20 +28,18 @@ Widget::Widget(QWidget *parent)
 
     ui->setupUi(this);
 
-//    for (CMD cmd = CMD(SET_VOLUME); cmd < CUSTOM; cmd = CMD(cmd)) { }
-
-    connect(handler, SIGNAL(connected()), this, SLOT(on_connect()));
-    connect(handler, SIGNAL(connectionError(QString&)), this, SLOT(on_connectionError(QString&)));
+    connect(handler, &SerialHandler::connected, this, &Widget::on_connect);
+    connect(handler, &SerialHandler::disconnected, this, &Widget::on_disconnect);
+    connect(handler, &SerialHandler::connectionError, this, &Widget::on_connectionError);
+    connect(handler, &SerialHandler::synced, this, &Widget::on_syncEvent);
+    connect(handler, &SerialHandler::valueEvent, this, &Widget::on_valueEvent);
 
     ui->deviceComboBox->addItems(handler->availablePorts());
     handler->connectTo(ui->deviceComboBox->currentText());
 }
 
 
-Widget::~Widget()
-{
-    serial->close();
-    delete serial;
+Widget::~Widget() {
     delete handler;
     delete ui;
 }
@@ -53,6 +50,12 @@ void Widget::showEvent(QShowEvent *event) {
 
 void Widget::on_connect() {
     ui->controlGroupBox->setEnabled(true);
+    ui->connectCheckBox->setChecked(true);
+}
+
+void Widget::on_disconnect() {
+    ui->controlGroupBox->setEnabled(false);
+    ui->connectCheckBox->setChecked(false);
 }
 
 
@@ -75,6 +78,38 @@ void Widget::on_connectionError(QString &error)
 }
 
 
+void Widget::on_syncEvent(Values &values) {
+    setSliderValue(ui->volumeSlider, values.volume*100/63);
+    setSliderValue(ui->trebleSlider, (values.treble+7)*100/14);
+    setSliderValue(ui->bassSlider, (values.bass+7)*100/14);
+    setSliderValue(ui->balanceSlider, values.balance+31);
+}
+
+void Widget::on_valueEvent(CMD cmd, int8_t &value) {
+    switch (cmd) {
+        case SET_VOLUME:
+            setSliderValue(ui->volumeSlider, value*100/63);
+            break;
+
+        case SET_TREBLE:
+            setSliderValue(ui->trebleSlider, (value+7)*100/14);
+            break;
+
+        case SET_BASS:
+            setSliderValue(ui->bassSlider, (value+7)*100/14);
+            break;
+    }
+}
+
+
+void Widget::setSliderValue(QObject *slider, const int &value) {
+    const bool wasBlocked = slider->blockSignals(true);
+    ((QSlider*) slider)->setValue(value);
+    slider->blockSignals(wasBlocked);
+}
+
+
+
 void Widget::on_deviceComboBox_currentTextChanged(const QString &deviceName)
 {
     qDebug() << "Device changed: " << deviceName;
@@ -84,11 +119,9 @@ void Widget::on_deviceComboBox_currentTextChanged(const QString &deviceName)
 
 void Widget::on_connectCheckBox_toggled(bool checked)
 {
-    if (checked) {
+    if (checked && !handler->isConnected()) {
         handler->connectTo(ui->deviceComboBox->currentText());
-    } else {
-        ui->controlGroupBox->setEnabled(false);
-        ui->connectCheckBox->setCheckState(Qt::Unchecked);
+    } else if (handler->isConnected()) {
         handler->disconnect();
     }
 }
@@ -155,3 +188,4 @@ void Widget::on_sendBtn_pressed()
         qDebug() << "Sending command: " << command << endl;
     }
 }
+

@@ -15,6 +15,7 @@ enum CMD : uint8_t {
     SET_MUTE,
     SET_LOUDNESS,
     SYNC = 100,
+    DISCONNECT,
     CUSTOM = 200
 };
 
@@ -31,6 +32,14 @@ struct DataHead {
 struct DataPacket {
     DataHead head;
     char* payload;
+};
+
+struct Values {
+    int8_t volume = 33;
+    int8_t treble = 5;
+    int8_t bass = 5;
+    int8_t balance = 0;
+    uint8_t mute_loud = 0;
 };
 
 #endif //SVEN_CONTROL_EXCHANGE_H

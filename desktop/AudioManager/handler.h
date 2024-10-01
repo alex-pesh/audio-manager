@@ -53,16 +53,19 @@ public:
     void connectTo(const QString &portName);
     void disconnect();
     bool isConnected();
-    void sendCommand(const CMD &cmd, int16_t value);
+    void sendCommand(const CMD &cmd, int16_t value = 0);
     void sendCommand(const QString &value);
 
 signals:
     void connected();
     void disconnected();
     void connectionError(QString &error);
+    void synced(Values &values);
+    void valueEvent(CMD cmd, int8_t &value);
 
 public slots:
     void handleError(QSerialPort::SerialPortError error);
+    void processEvent();
 
 };
 

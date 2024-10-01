@@ -4,9 +4,9 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    Widget w;
-    w.setWindowFlag(Qt::WindowStaysOnTopHint);
-    w.show();
-    return a.exec();
+    QApplication app(argc, argv);
+    Widget widget;
+    widget.setWindowFlag(Qt::WindowStaysOnTopHint);
+    widget.show();
+    return app.exec();
 }
