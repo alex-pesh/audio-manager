@@ -83,6 +83,18 @@ void Widget::on_syncEvent(Values &values) {
     setSliderValue(ui->trebleSlider, (values.treble+7)*100/14);
     setSliderValue(ui->bassSlider, (values.bass+7)*100/14);
     setSliderValue(ui->balanceSlider, values.balance+31);
+
+    switch (values.source) {
+        case 0:
+            ui->sourceCdBtn->setChecked(true);
+            break;
+        case 1:
+            ui->sourcePcBtn->setChecked(true);
+            break;
+        case 2:
+            ui->sourceAuxBtn->setChecked(true);
+            break;
+    }
 }
 
 void Widget::on_valueEvent(CMD cmd, int8_t &value) {
@@ -189,3 +201,30 @@ void Widget::on_sendBtn_pressed()
     }
 }
 
+
+void Widget::on_sourceAuxBtn_clicked(bool checked)
+{
+    if (checked) {
+        int8_t value = 2;
+        qDebug() << "Source: " << value;
+        handler->sendCommand(CMD::SET_SOURCE, value);
+    }
+}
+
+void Widget::on_sourcePcBtn_clicked(bool checked)
+{
+    if (checked) {
+        int8_t value = 1;
+        qDebug() << "Source: " << value;
+        handler->sendCommand(CMD::SET_SOURCE, value);
+    }
+}
+
+void Widget::on_sourceCdBtn_clicked(bool checked)
+{
+    if (checked) {
+        int8_t value = 0;
+        qDebug() << "Source: " << value;
+        handler->sendCommand(CMD::SET_SOURCE, value);
+    }
+}

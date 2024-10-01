@@ -28,6 +28,15 @@ public slots:
     void on_valueEvent(CMD cmd, int8_t &value);
 
 private slots:
+    void on_sourceCdBtn_clicked(bool checked);
+
+private slots:
+    void on_sourcePcBtn_clicked(bool checked);
+
+private slots:
+    void on_sourceAuxBtn_clicked(bool checked);
+
+private slots:
     void on_sendBtn_pressed();
 
     void on_deviceComboBox_currentTextChanged(const QString &deviceName);

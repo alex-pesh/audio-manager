@@ -135,7 +135,7 @@ void SerialHandler::handleError(QSerialPort::SerialPortError error) {
     }
 }
 
-void SerialHandler::sendCommand(const CMD &cmd, const int16_t value) {
+void SerialHandler::sendCommand(const CMD &cmd, const int8_t value) {
     if (m_serial->isOpen()) {
         qDebug() << "------ Sending command ------";
         qDebug(">> CMD: %d ; Value: %d", cmd, value);
@@ -180,7 +180,9 @@ void SerialHandler::processEvent() {
         std::string label;
 
         switch (cmd) {
+            case SET_SOURCE:
             case SET_VOLUME:
+            case SET_BALANCE:
             case SET_BASS:
             case SET_TREBLE: {
                 int8_t value;
@@ -207,8 +209,8 @@ void SerialHandler::processEvent() {
                 Values values;
                 m_serial->read(reinterpret_cast<char *>(&values), sizeof(Values));
                 emit SerialHandler::synced(values);
-                qDebug("Sync values [Volume: %d; Treble: %d; Bass: %d; Balance: %d]",
-                       values.volume, values.treble, values.bass, values.balance);
+                qDebug("Sync values [Volume: %d; Treble: %d; Bass: %d; Balance: %d; Loudness: %d; Gain: %d; Source: %d]",
+                       values.volume, values.treble, values.bass, values.balance, values.mute_loud, values.gain, values.source);
                 break;
             }
 

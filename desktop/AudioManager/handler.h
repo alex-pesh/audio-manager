@@ -52,7 +52,7 @@ public:
     void connectTo(const QString &portName);
     void disconnect();
     bool isConnected();
-    void sendCommand(const CMD &cmd, int16_t value = 0);
+    void sendCommand(const CMD &cmd, int8_t value = 0);
     void sendCommand(const QString &value);
 
 signals:
