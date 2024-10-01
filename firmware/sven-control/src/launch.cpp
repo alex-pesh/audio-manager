@@ -20,6 +20,7 @@
   #include "app_api.h" // only needed with flash breakpoints
 #endif  // DEBUG_MODE
 
+#define SERIAL_RX_BUFFER_SIZE 256
 #define ADDR_SLAVE   0x44       // Self I2C slave address
 #define ADDR_TARGET  0x88       // Target I2C device address
 #define PT2313_ADDR  ADDR_TARGET // Redefined value of PT2313.h
@@ -29,8 +30,9 @@
 #define SERIAL_BUFF_SIZE    4
 
 #define PIN_INTERRUPT 2
-
 #define PIN_IR_RECEIVE 12
+
+#define EXT_POWER_THRESHOLD 512  // ~2.5V
 
 
 unsigned char startResult;
@@ -39,6 +41,7 @@ char serialBuff[SERIAL_BUFF_SIZE];
 
 volatile int rxLength = 0;
 volatile boolean serialReady = false;
+volatile int8_t deviceState = LOW;
 
 
 PT2313 audioChip;
@@ -94,11 +97,6 @@ struct Values {
 } values;
 
 
-void saveValues() {
-    EEPROM.put(0, values);
-}
-
-
 
 #define \
 printDecimal(value) \
@@ -109,7 +107,7 @@ printDecimal(value) \
     Serial.print("  ");
 
 
-void printValues(const char label[]) {
+void printValues(const char label[], const Values &values) {
 #if SERIAL_MODE
 
     Serial.write(CMD::CUSTOM);
@@ -159,7 +157,7 @@ void printVal(const char label[], int16_t value) {
 }
 
 
-void sendValues() {
+void sendValues(Values const &values) {
 #if SERIAL_MODE
 
     Serial.write(CMD::SYNC);
@@ -171,6 +169,17 @@ void sendValues() {
     Serial.flush();
 
 #endif  // SERIAL_MODE
+}
+
+
+void sendValueCmd(CMD cmd, const int8_t &value) {
+#if SERIAL_MODE
+
+    Serial.write(cmd);
+    Serial.write(value);
+    Serial.flush();
+
+#endif  // SERIAL_MODE    
 }
 
 
@@ -210,15 +219,26 @@ void printBytes(unsigned n) {
 
 
 
-#define CMD_DELAY 150
+void saveValues(Values &values) {
+    EEPROM.put(0, values);
+    saved = true;
+    changed = false;
+}
 
-void restoreValues() {
-
+void restoreValues(Values &values) {
     values.volume = (int8_t) EEPROM.read(0);
     values.treble = (int8_t) EEPROM.read(1);
     values.bass = (int8_t) EEPROM.read(2);
     values.balance = (int8_t) EEPROM.read(3);
     values.mute_loud = (int8_t) EEPROM.read(4);
+}
+
+
+#define CMD_DELAY 150
+
+void restoreValues() {
+
+    restoreValues(values);
 
     audioChip.source(0);
     delay(CMD_DELAY);
@@ -244,11 +264,12 @@ void restoreValues() {
 
     // audioChip.loudness(values.loudnessOn());
     // audioChip.gain(gain); //gain 0...11.27 db
-   
 
     encoders.volume.counter = values.volume;
     encoders.treble.counter = values.treble;
     encoders.bass.counter = values.bass;
+
+    changed = false;
 }
 
 
@@ -297,9 +318,17 @@ void blink(int count) {
     }
 }
 
+
 void powerInterrupt() {
-    blink(10);
+    deviceState = LOW;
 }
+
+boolean isDevicePowerDown() {
+    int analogIn = analogRead(A7);
+    return analogIn >= EXT_POWER_THRESHOLD;
+}
+
+
 
 
 void setup() {
@@ -313,10 +342,9 @@ void setup() {
     // Serial.setTimeout(0);
 #endif  // SERIAL_MODE
 
-/*
-    pinMode(PIN_INTERRUPT, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(PIN_INTERRUPT), powerInterrupt, FALLING);
-*/
+    pinMode(PIN_INTERRUPT, INPUT);
+    attachInterrupt(digitalPinToInterrupt(PIN_INTERRUPT), powerInterrupt, HIGH);
+
 
 /* 
     Serial.println("Init wire...");
@@ -324,8 +352,8 @@ void setup() {
     Wire.onReceive(wireReceiveHandler);
  */
 
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
+    // pinMode(LED_BUILTIN, OUTPUT);
+    // digitalWrite(LED_BUILTIN, LOW);
 
 
     // Serial.println("Init IrReceiver...");
@@ -354,10 +382,14 @@ void setup() {
     // Serial.println("Init audio...");
     audioChip.initialize(ADDR_TARGET, 0, false);
     
+
     // Serial.println("Restoring values...");
     restoreValues();
 
-    printValues("Initialized with values: ");
+    deviceState = HIGH;
+
+    sendValues(values);
+    printValues("Initialized with values: ", values);
 
 }
 
@@ -401,9 +433,9 @@ void processSerialBuff() {
             uint8_t cmd = *((uint8_t *) serialBuff);
             int8_t val = *((int8_t *) (serialBuff + 2));
 
-            printVal("Data: ", serialBuff, 0, 4);
-            printVal("Command: ", cmd);
-            printVal("Value: ", val);
+            // printVal("Data: ", serialBuff, 0, 4);
+            // printVal("Command: ", cmd);
+            // printVal("Value: ", val);
 
             switch (cmd) {
                 case SET_VOLUME:
@@ -446,22 +478,30 @@ void processSerialBuff() {
                     break;
 
                 case SYNC:
-                    sendValues();
+                    switch (val) {
+                        case 0:
+                            sendValues(values);
+                            break;
+
+                        case 1: {
+                            Values values;
+                            restoreValues(values);
+                            // sendValues(values);
+                            printValues("Read from eeprom: ", values);
+                            // DataPacket packet = DataPacket::asMessage("Read from eeprom");
+                            break;
+                        }
+
+                        case 2:
+                            saveValues(values);
+                            changed = false;
+                            printValues("Written to eeprom: ", values);
+                            break;
+                    }
+
                     break;
 
                 case CUSTOM:
-                    if (val == 0) {
-                        restoreValues();
-                        printValues("Read from eeprom: ");
-                        changed = false;
-//                        DataPacket packet = DataPacket::asMessage("Read from eeprom");
-//                        Serial.print(packet);
-                    } else {
-                        saveValues();
-                        changed = false;
-                        printValues("Written to eeprom: ");
-                    }
-
                     break;
 
                 default:
@@ -480,27 +520,30 @@ void processSerialBuff() {
 void processEncoders() {
 
     if (encoders.volume.tick()) {
-        values.volume = encoders.volume.counter =
+        encoders.volume.counter = values.volume = 
         audioChip.volume(encoders.volume.counter);
         changed = true;
 
-        printVal("Volume set: ", values.volume);
+        sendValueCmd(CMD::SET_VOLUME, values.volume);
+        // printVal("Volume set: ", values.volume);
     }
     
     if (encoders.treble.tick()) {
-        values.treble = encoders.treble.counter =
+        encoders.treble.counter = values.treble = 
         audioChip.treble(encoders.treble.counter);
         changed = true;
 
-        printVal("Treble set: ", values.treble);
+        sendValueCmd(CMD::SET_TREBLE, values.treble);
+        // printVal("Treble set: ", values.treble);
     }
 
     if (encoders.bass.tick()) {
-        values.bass = encoders.bass.counter =
+        encoders.bass.counter = values.bass = 
         audioChip.bass(encoders.bass.counter);
         changed = true;
 
-        printVal("Bass set: ", values.bass);
+        sendValueCmd(CMD::SET_BASS, values.bass);
+        // printVal("Bass set: ", values.bass);
     }
 }
 
@@ -520,6 +563,18 @@ if (IrReceiver.decode()) {
 
 void loop() {
 
+    if (deviceState == LOW) {
+        if (changed && !saved) {
+            saveValues(values);
+            saved = true;
+            changed = false;
+
+            sendValueCmd(CMD::DISCONNECT, 1);
+        }
+
+        sendValueCmd(CMD::DISCONNECT, 0);
+    }
+
     processEncoders();
     delay(1);
 
@@ -533,51 +588,11 @@ void loop() {
     // delay(10);
 
 
-    if (changed && !saved) {
-        int analogIn = analogRead(A7);
-        if (analogIn > 512) {       // ~2.5V
-            saveValues();
-            saved = true;
-            changed = false;
-
-            printVal("Voltage: ", analogIn);
-            printValues("Saved to eeprom: ");
-        }
-    }
 }
+
 
 
 void serialEvent() {
-
-#if SERIAL_MODE
   serialReady = true;
-
-/* 
-    int available = Serial.available();
-    printVal("Serial event. Available: ", available);
- */    
-/*
-
-
-
-  while ((available = Serial.available()) > 0) {
-    // int readVal = Serial.read();
-    // serialBuff.putInt(readVal);
-    // int readVal = Serial.readBytes(serialBuff.buff, 4);
-
-    char c = Serial.read();
-    serialBuff.putChar(c);
-
-    printVal("Read value to buff: ", c);
-    printVal("WriteIdx: ", serialBuff.writeIdx);
-    printVal("ReadIdx: ", serialBuff.readIdx);
-  }
-
-  printVal("Value in buff by readIdx: ", serialBuff.buff, serialBuff.readIdx, 4);
-  // printVal("Read int: ", serialBuff.getInt());
-*/
-
-#endif  // SERIAL_MODE
 }
-
 

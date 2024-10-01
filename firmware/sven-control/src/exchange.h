@@ -15,6 +15,7 @@ enum CMD : uint8_t {
     SET_MUTE,
     SET_LOUDNESS,
     SYNC = 100,
+    DISCONNECT,
     CUSTOM = 200
 };
 
