@@ -66,25 +66,25 @@ void SerialHandler::connectTo(const QString& portName) {
         return;
     } else {
         qDebug() << "Connected to " << portName;
-
-        m_serial->clear(QSerialPort::AllDirections);
-        sendCommand(CMD::SYNC);
         emit connected();
     }
 
+    connect(m_serial, SIGNAL(readyRead()), this, SLOT(processEvent()));
+    connect(m_serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
+
+    m_serial->clear(QSerialPort::AllDirections);
+    sendCommand(CMD::SYNC);
+
+
 //    QThread *thread = new QThread();
 //    thread->setObjectName("Receiver_Thread");
-    m_receiver = new Receiver(*m_serial);
+//    m_receiver = new Receiver(*m_serial);
 //    m_receiver->moveToThread(thread);
 
 //    connect(thread, SIGNAL(started()), m_receiver, SLOT(init()));
 //    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 //    connect(m_receiver, SIGNAL(finished()), thread, SLOT(quit()));
-
-    connect(m_receiver, SIGNAL(finished()), m_receiver, SLOT(deleteLater()));
-    connect(m_serial, SIGNAL(readyRead()), this, SLOT(processEvent()));
-    connect(m_serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
-
+//    connect(m_receiver, SIGNAL(finished()), m_receiver, SLOT(deleteLater()));
 //    thread->start();
 
 }
@@ -94,7 +94,6 @@ QList<QString> SerialHandler::availablePorts() {
     QList<QString> portNames;
     QList<QSerialPortInfo> portInfos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : portInfos) {
-//        qDebug() << info.systemLocation();
         portNames.append(info.systemLocation());
     }
 
@@ -105,33 +104,27 @@ void SerialHandler::disconnect() {
     if (!m_serial->isOpen()) {
         return;
     }
-    m_receiver->stop();
+//    m_receiver->stop();
     m_serial->close();
 
     emit disconnected();
+    qDebug() << "Disconnected from " << m_serial->portName();
 }
 
 bool SerialHandler::isConnected() {
     return m_serial->isOpen();
 }
 
-bool SerialHandler::checkSerial()
-{
+bool SerialHandler::checkSerial() {
     QSerialPortInfo *portInfo = new QSerialPortInfo(m_serial->portName());
-    // ui->serialDevice being a combobox of available serial ports
-
-    if (portInfo->isValid())
-    {
+    if (portInfo->isValid()) {
         return true;
-    }
-    else
-    {
+    } else {
         return false;
     }
 }
 
-void SerialHandler::handleError(QSerialPort::SerialPortError error)
-{
+void SerialHandler::handleError(QSerialPort::SerialPortError error) {
     if (error == QSerialPort::ResourceError) {
         qDebug() << "Connection error " << m_serial->portName() << ": " << m_serial->errorString();
 
@@ -199,7 +192,6 @@ void SerialHandler::processEvent() {
             case CUSTOM: {
                 int8_t value;
                 m_serial->peek(reinterpret_cast<char *>(&value), sizeof(int8_t)); // read command value
-                qDebug("DATA: %d", value);
                 break;
             }
 
@@ -234,7 +226,7 @@ void SerialHandler::processEvent() {
             qDebug().noquote() << "<<" << respString;
         }
 //        qDebug("Bytes received: %d", respBuff.size());
-        qDebug("------------------------------");
+        qDebug() << "------------------------------" << endl;
     }
 }
 

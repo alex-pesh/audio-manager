@@ -6,7 +6,6 @@
 #include <QMutex>
 #include <QThread>
 #include <QtSerialPort/QSerialPort>
-#include <type_traits>
 
 
 class Receiver: public QObject
