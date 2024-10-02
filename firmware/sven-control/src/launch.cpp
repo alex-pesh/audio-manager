@@ -71,12 +71,7 @@ void encodersTimerISR() {
 };
 
 
-struct Values {
-    int8_t volume = 33;
-    int8_t treble = 5;
-    int8_t bass = 5;
-    int8_t balance = 0;
-    uint8_t mute_loud = 0;
+struct ValuesExt: Values {
 
     void muted(bool value) {
         value ? bitSet(mute_loud, 0) : bitClear(mute_loud, 0);
@@ -117,7 +112,9 @@ void printValues(const char label[], const Values &values) {
     printDecimal(values.treble)
     printDecimal(values.bass)
     printDecimal(values.balance)
+    printDecimal(values.source)
     printDecimal(values.mute_loud)
+    printDecimal(values.gain)
     Serial.println();
     Serial.flush();
 
@@ -165,7 +162,9 @@ void sendValues(Values const &values) {
     Serial.write(values.treble);
     Serial.write(values.bass);
     Serial.write(values.balance);
+    Serial.write(values.source);
     Serial.write(values.mute_loud);
+    Serial.write(values.gain);
     Serial.flush();
 
 #endif  // SERIAL_MODE
@@ -230,17 +229,19 @@ void restoreValues(Values &values) {
     values.treble = (int8_t) EEPROM.read(1);
     values.bass = (int8_t) EEPROM.read(2);
     values.balance = (int8_t) EEPROM.read(3);
-    values.mute_loud = (int8_t) EEPROM.read(4);
+    values.source = (int8_t) EEPROM.read(4);
+    values.mute_loud = (int8_t) EEPROM.read(5);
+    values.gain = (int8_t) EEPROM.read(6);
 }
 
 
-#define CMD_DELAY 50
+#define CMD_DELAY 10
 
 void restoreValues() {
 
     restoreValues(values);
 
-    audioChip.source(0);
+    audioChip.source(values.source);
     delay(CMD_DELAY);
 
     values.volume = 
@@ -255,15 +256,19 @@ void restoreValues() {
     audioChip.bass(values.bass);
     delay(CMD_DELAY);
 
-    values.balance = 
-    audioChip.balance(values.balance);
-    delay(CMD_DELAY);
-
     audioChip.mute(values.muted());
     delay(CMD_DELAY);
 
-    // audioChip.loudness(values.loudnessOn());
-    // audioChip.gain(gain); //gain 0...11.27 db
+    audioChip.loudness(values.loudnessOn());
+    delay(CMD_DELAY);
+
+    values.gain = 
+    audioChip.gain(values.gain);
+    delay(CMD_DELAY);
+
+    values.balance = 
+    audioChip.balance(values.balance);
+    delay(CMD_DELAY);
 
     encoders.volume.counter = values.volume;
     encoders.treble.counter = values.treble;
@@ -357,9 +362,9 @@ void setup() {
     Timer1.initialize(1000);    // установка таймера на каждые 1000 микросекунд (= 1 мс)
     Timer1.attachInterrupt(encodersTimerISR);
 
-    delay(500); // wait for PT2313 I2C remote device to be initialized
+    // delay(100); // wait for PT2313 I2C remote device to be initialized
 
-    audioChip.initialize(ADDR_TARGET, 0, false);
+    audioChip.initialize(ADDR_TARGET, PT2313_SOURCE_AUX, false);
     
     restoreValues();
 
@@ -441,6 +446,12 @@ void processSerialBuff() {
                     printVal("Balance set: ", values.balance);
                     break;
 
+                case SET_SOURCE:
+                    values.source = audioChip.source(val);
+                    printVal("Source set: ", values.source);
+                    changed = true;
+                    break;
+
                 case SET_MUTE:
                     values.muted(audioChip.mute(val == 1));
                     changed = true;
@@ -451,6 +462,12 @@ void processSerialBuff() {
                     values.loudnessOn(audioChip.loudness(val == 1));
                     changed = true;
                     printVal("Loudness set: ", values.loudnessOn());
+                    break;
+
+                case SET_GAIN:
+                    values.gain = audioChip.gain(val);
+                    changed = true;
+                    printVal("Gain set: ", values.gain);
                     break;
 
                 case SYNC:

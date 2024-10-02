@@ -14,6 +14,8 @@ enum CMD : uint8_t {
     SET_BALANCE,
     SET_MUTE,
     SET_LOUDNESS,
+    SET_GAIN,
+    SET_SOURCE,
     SYNC = 100,
     DISCONNECT,
     CUSTOM = 200
@@ -59,6 +61,17 @@ struct DataPacket : Printable {
 
         return packet;
     }
+};
+
+
+struct Values {
+    int8_t volume = 33;
+    int8_t treble = 5;
+    int8_t bass = 5;
+    int8_t balance = 0;
+    int8_t source = 2;
+    uint8_t mute_loud = 0;
+    uint8_t gain = 0;
 };
 
 #endif //SVEN_CONTROL_EXCHANGE_H

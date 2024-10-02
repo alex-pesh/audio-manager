@@ -12,6 +12,9 @@ void PT2313::initialize(unsigned char addr, byte src, bool muted) {
 	_addr = addr;
 	i2c_init();
 
+	audioSwitch_reg = 0x5C;
+	source(src);
+
 /* 
 	Wire.begin(9600);
 #if ARDUINO >= 157
@@ -105,6 +108,7 @@ bool PT2313::mute(bool value) {
 }
 
 byte PT2313::gain(byte val) {//range 0-3
+	val = boundary(val, 0, 3);
 	switch(val) {
 	case 0://0db
 		bitSet(audioSwitch_reg,3);

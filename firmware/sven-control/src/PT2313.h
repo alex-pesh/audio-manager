@@ -35,6 +35,11 @@ Library works with most arduino compatible processors and teensy3
 #define PT2313_BASS_REG       0x60 //01100000
 #define PT2313_TREBLE_REG     0x70 //01110000
 
+#define PT2313_SOURCE_AUX     2
+#define PT2313_SOURCE_PC      1
+#define PT2313_SOURCE_CD      0
+
+
 class PT2313 {
 
 public:
