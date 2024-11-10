@@ -8,28 +8,53 @@
 #include <linux/serial.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <cerrno>
+
+#include <libudev.h>
+#include <poll.h>
+
 
 SerialHandler::SerialHandler(QObject *parent) : QObject(parent) {
 
     m_serial = new QSerialPort();
+
+    QThread *thread = new QThread();
+    thread->setObjectName("Receiver_Thread");
+    m_devMonitor = new DeviceMonitor(*this);
+    m_devMonitor->moveToThread(thread);
+
+    connect(thread, &QThread::started, m_devMonitor, &DeviceMonitor::process);
+    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+    connect(m_devMonitor, &DeviceMonitor::finished, thread, &QThread::quit);
+    connect(m_devMonitor, &DeviceMonitor::finished, m_devMonitor, &DeviceMonitor::deleteLater);
+    thread->start();
+
 }
 
 SerialHandler::~SerialHandler() {
-
-    if (m_serial->isOpen()) {
+    if (m_serial && m_serial->isOpen()) {
         m_serial->close();
     }
 
+    delete m_devMonitor;
     delete m_serial;
 }
 
 
 void serialInfo(const char *_portName) {
 
+//    struct udev_monitor *udev_monitor = udev_monitor_new_from_netlink(udev, _portName);
+//    if (!udev_monitor) {
+//        fprintf(stderr, "udev_monitor_new_from_netlink returned NULL\n");
+//        exit(EXIT_FAILURE);
+//    }
+
+
     int fd = open(_portName, O_RDWR | O_NOCTTY | O_NDELAY);
     if (fd < 0) {
         qDebug() << errno;
+        return;
     }
 
     int bytes = 0;
@@ -43,9 +68,13 @@ void serialInfo(const char *_portName) {
     qDebug() << "Buffer size: " << serinfo.xmit_fifo_size;
 */
 
+    close(fd);
+
 }
 
 void SerialHandler::connectTo(const QString& portName) {
+
+//    serialInfo(portName.toStdString().c_str());
 
     if (m_serial && m_serial->isOpen()) {
         disconnect();
@@ -75,18 +104,6 @@ void SerialHandler::connectTo(const QString& portName) {
     m_serial->clear(QSerialPort::AllDirections);
     sendCommand(CMD::SYNC);
 
-
-//    QThread *thread = new QThread();
-//    thread->setObjectName("Receiver_Thread");
-//    m_receiver = new Receiver(*m_serial);
-//    m_receiver->moveToThread(thread);
-
-//    connect(thread, SIGNAL(started()), m_receiver, SLOT(init()));
-//    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
-//    connect(m_receiver, SIGNAL(finished()), thread, SLOT(quit()));
-//    connect(m_receiver, SIGNAL(finished()), m_receiver, SLOT(deleteLater()));
-//    thread->start();
-
 }
 
 
@@ -95,6 +112,16 @@ QList<QString> SerialHandler::availablePorts() {
     QList<QSerialPortInfo> portInfos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : portInfos) {
         portNames.append(info.systemLocation());
+/*
+        qDebug() << info.systemLocation();
+        qDebug() << "manufacturer: " << info.manufacturer();
+        qDebug() << "description: " << info.description();
+        qDebug() << "manufacturer: " << info.manufacturer();
+        qDebug() << "productIdentifier: " << info.productIdentifier();
+        qDebug() << "serialNumber: " << info.serialNumber();
+        qDebug() << "vendorIdentifier: " << info.vendorIdentifier();
+        qDebug() << "isValid: " << info.isValid() << endl;
+*/
     }
 
     return portNames;
@@ -104,7 +131,6 @@ void SerialHandler::disconnect() {
     if (!m_serial->isOpen()) {
         return;
     }
-//    m_receiver->stop();
     m_serial->close();
 
     emit disconnected();
@@ -124,16 +150,6 @@ bool SerialHandler::checkSerial() {
     }
 }
 
-void SerialHandler::handleError(QSerialPort::SerialPortError error) {
-    if (error == QSerialPort::ResourceError) {
-        qDebug() << "Connection error " << m_serial->portName() << ": " << m_serial->errorString();
-
-        emit connectionError(QString::fromLatin1("Connection error ")
-                                     .append(m_serial->portName()).append(": ").append(m_serial->errorString()));
-
-        disconnect();
-    }
-}
 
 void SerialHandler::sendCommand(const CMD &cmd, const int8_t value) {
     if (m_serial->isOpen()) {
@@ -164,6 +180,18 @@ void SerialHandler::sendCommand(const QString &input) {
     }
 
     sendCommand(cmd, value);
+}
+
+
+void SerialHandler::handleError(QSerialPort::SerialPortError error) {
+    if (error == QSerialPort::ResourceError) {
+        qDebug() << "Connection error " << m_serial->portName() << ": " << m_serial->errorString();
+
+        emit connectionError(QString::fromLatin1("Connection error ")
+                                     .append(m_serial->portName()).append(": ").append(m_serial->errorString()));
+
+        disconnect();
+    }
 }
 
 
@@ -234,22 +262,104 @@ void SerialHandler::processEvent() {
 
 
 
-Receiver::Receiver(QSerialPort &serial) {
-    this->m_serial = &serial;
-    qDebug() << "Receiver is created";
+DeviceMonitor::DeviceMonitor(SerialHandler &handler) : handler(handler) {
+    qDebug() << "DeviceMonitor is created";
 }
 
-Receiver::~Receiver() {
-    qDebug() << "Receiver is destructed";
-}
-
-
-void Receiver::init() {
-    qDebug() << "Initialized receiver thread";
+DeviceMonitor::~DeviceMonitor() {
+    qDebug() << "DeviceMonitor is destructed";
 }
 
 
-void Receiver::process() {
+void DeviceMonitor::init() {
+    qDebug() << "Initialized monitor thread";
+}
+
+
+void DeviceMonitor::process() {
+
+//    https://www.freedesktop.org/software/systemd/man/latest/libudev.html
+//    https://ftp.ntu.edu.tw/linux/utils/kernel/hotplug/libudev/libudev-udev-monitor.html
+
+
+//    const char *UDEV_MONITOR_NAME = "/dev/ttyUSB0";
+
+    udev *udev = udev_new();
+
+//    struct udev_enumerate *devices = udev_enumerate_new(udev);
+
+    udev_monitor* hotplug_monitor = udev_monitor_new_from_netlink(udev, "udev");
+    udev_monitor_enable_receiving(hotplug_monitor);
+
+    pollfd fd{
+            .fd = udev_monitor_get_fd(hotplug_monitor),
+            .events = POLLIN,
+            .revents = 0
+    };
+
+    while( poll(&fd, 1, -1) > 0 ) {
+
+        // receive the relevant device
+        udev_device* dev = udev_monitor_receive_device(hotplug_monitor);
+        if(!dev) {
+            continue;
+        }
+
+        const char *action = udev_device_get_action(dev);
+        const char *subsystem = udev_device_get_subsystem(dev);
+
+        if  (!strcmp(subsystem, "usb-serial") &&
+            (!strcmp(action, "bind") || !strcmp(action, "unbind"))) {
+
+            handler.emit device_plugged();
+        }
+
+/*
+        qDebug() << "hotplug[" << fd.revents << "]";
+        qDebug() << "action: " << udev_device_get_action(dev);
+        qDebug() << "devnode: " << udev_device_get_devnode(dev);
+        qDebug() << "subsystem: " << udev_device_get_subsystem(dev);
+        qDebug() << "devtype: " << udev_device_get_devtype(dev);
+        qDebug() << "driver: " << udev_device_get_driver(dev);
+        qDebug() << "devpath: " << udev_device_get_devpath(dev);
+        qDebug() << "syspath: " << udev_device_get_syspath(dev);
+        qDebug() << "sysname: " << udev_device_get_sysname(dev);
+        qDebug() << "sysnum: " << udev_device_get_sysnum(dev);
+        qDebug() << "initialized: " << udev_device_get_is_initialized(dev);
+
+        udev_list_entry *devlinks = udev_device_get_devlinks_list_entry(dev);
+        udev_list_entry *properties_entry = udev_device_get_properties_list_entry(dev);
+        udev_list_entry *tags = udev_device_get_tags_list_entry(dev);
+        udev_list_entry *sysattrs = udev_device_get_sysattr_list_entry(dev);
+
+
+        while (devlinks) {
+            qDebug() << "   Link " << udev_list_entry_get_name(devlinks)  << ": " << udev_list_entry_get_value(devlinks);
+            devlinks = udev_list_entry_get_next(devlinks);
+        }
+
+        while (properties_entry) {
+            qDebug() << "   Prop " << udev_list_entry_get_name(properties_entry)  << ": " << udev_list_entry_get_value(properties_entry);
+            properties_entry = udev_list_entry_get_next(properties_entry);
+        }
+
+        while (tags) {
+            qDebug() << "   Tag " << udev_list_entry_get_name(tags)  << ": " << udev_list_entry_get_value(tags);
+            tags = udev_list_entry_get_next(tags);
+        }
+
+        while (sysattrs) {
+            qDebug() << "   Attr " << udev_list_entry_get_name(sysattrs)  << ": " << udev_list_entry_get_value(sysattrs);
+            sysattrs = udev_list_entry_get_next(sysattrs);
+        }
+*/
+
+        udev_device_unref(dev);
+        fd.revents = 0;
+    }
+
+
+
 /*
 
     if (!m_quit && m_serial->bytesAvailable() < sizeof (DataHead)) {
@@ -277,7 +387,7 @@ void Receiver::process() {
 }
 
 
-void Receiver::stop() {
+void DeviceMonitor::stop() {
     m_quit = true;
     emit finished();
 }

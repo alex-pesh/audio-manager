@@ -8,31 +8,7 @@
 #include <QtSerialPort/QSerialPort>
 
 
-class Receiver: public QObject
-{
-    Q_OBJECT
-
-private:
-    QSerialPort *m_serial;
-    volatile bool m_quit = false;
-
-public:
-    explicit Receiver(QSerialPort &m_serial);
-    ~Receiver() override;
-
-
-public slots:
-    void init();
-    void process();
-    void stop();
-
-//Q_SIGNALS
-signals:
-    void finished();
-    void error(const QString& error);
-};
-
-
+class DeviceMonitor;
 
 class SerialHandler : public QObject
 {
@@ -40,7 +16,7 @@ class SerialHandler : public QObject
 
 private:
     QSerialPort *m_serial;
-    Receiver *m_receiver;
+    DeviceMonitor *m_devMonitor;
 
     bool checkSerial();
 
@@ -56,6 +32,7 @@ public:
     void sendCommand(const QString &value);
 
 signals:
+    void device_plugged();
     void connected();
     void disconnected();
     void connectionError(QString &error);
@@ -69,4 +46,30 @@ public slots:
 };
 
 
+class DeviceMonitor: public QObject
+{
+Q_OBJECT
+
+private:
+    SerialHandler &handler;
+    volatile bool m_quit = false;
+
+public:
+    explicit DeviceMonitor(SerialHandler &handler);
+    ~DeviceMonitor() override;
+
+
+public slots:
+    void init();
+    void process();
+    void stop();
+
+//Q_SIGNALS
+signals:
+    void finished();
+    void error(const QString& error);
+};
+
 #endif // HANDLER_H
+
+

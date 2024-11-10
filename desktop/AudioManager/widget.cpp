@@ -28,6 +28,7 @@ Widget::Widget(QWidget *parent)
 
     ui->setupUi(this);
 
+    connect(handler, &SerialHandler::device_plugged, this, &Widget::on_device_plugged);
     connect(handler, &SerialHandler::connected, this, &Widget::on_connect);
     connect(handler, &SerialHandler::disconnected, this, &Widget::on_disconnect);
     connect(handler, &SerialHandler::connectionError, this, &Widget::on_connectionError);
@@ -35,7 +36,7 @@ Widget::Widget(QWidget *parent)
     connect(handler, &SerialHandler::valueEvent, this, &Widget::on_valueEvent);
 
     ui->deviceComboBox->addItems(handler->availablePorts());
-    handler->connectTo(ui->deviceComboBox->currentText());
+//    handler->connectTo(ui->deviceComboBox->currentText());
 }
 
 
@@ -47,6 +48,16 @@ Widget::~Widget() {
 void Widget::showEvent(QShowEvent *event) {
 
 }
+
+void Widget::refreshDevicesList() {
+    ui->deviceComboBox->clear();
+    ui->deviceComboBox->addItems(handler->availablePorts());
+}
+
+void Widget::on_device_plugged() {
+    refreshDevicesList();
+}
+
 
 void Widget::on_connect() {
     ui->controlGroupBox->setEnabled(true);

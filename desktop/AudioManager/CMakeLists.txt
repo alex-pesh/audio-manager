@@ -47,6 +47,7 @@ else()
 endif()
 
 target_link_libraries(AudioManager
-    PRIVATE
+        PRIVATE
+        udev
         Qt${QT_VERSION_MAJOR}::Widgets
-	Qt${QT_VERSION_MAJOR}SerialPort)
+        Qt${QT_VERSION_MAJOR}SerialPort)

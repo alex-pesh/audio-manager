@@ -21,6 +21,7 @@ public:
     ~Widget();
 
 public slots:
+    void on_device_plugged();
     void on_connect();
     void on_disconnect();
     void on_connectionError(QString &error);
@@ -59,6 +60,7 @@ private:
     Ui::Widget *ui;
     SerialHandler *handler;
 
+    void refreshDevicesList();
     void showEvent(QShowEvent *event) override;
     static void setSliderValue(QObject *slider, const int &value);
 };
